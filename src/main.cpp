@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <cmath>
+#include <ctime>
 #include <cstdio>
 #include <vector>
 #include <cstdlib>
@@ -33,14 +34,9 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-	std::string scenario;
-	std::string metric;
-	std::vector<double> a_arrival;
-	std::vector<int> a_back;
-	std::vector<double> c_arrival;
-	std::vector<int> c_back;
-	Station a_curr;
-	Station c_curr;
+
+	// Set the time seed
+	srand((int)time(0));
 
 	// Simulation Variables in Slots
 	double tot_slots = 0.0;
@@ -51,6 +47,20 @@ int main(int argc, char *argv[]) {
 	double ACK_slots = 0.0;
 	double RTS_slots = 0.0;
 	double CTS_slots = 0.0;
+	double lambda_A = 200.0;	// set of 50, 100, 200, 300 frame/sec
+	double lambda_C = 200.0;	// set of 50, 100, 200, 300 frame/sec
+
+	// Variables for A and C nodes
+	std::vector<double> a_arrival, c_arrival;	//std::vector someVal, someVal.push_back(val) << adds to end of list
+	std::vector <double> a_poisson_set, c_poisson_set;	// The set of randomized values in slots
+	
+	// Variables for scenarios??
+	std::string scenario;
+	std::string metric;
+	std::vector<int> a_back;
+	std::vector<int> c_back;
+	Station a_curr;
+	Station c_curr;
 
 	// Variables for the process
 	bool active_node = false;
@@ -67,11 +77,11 @@ int main(int argc, char *argv[]) {
 	SIM_TIME_slots = lround(SIM_TIME / (SLOT * pow(10,-6)));
 	DIFS_slots = ceil((double)DIFS / SLOT);
 	SIFS_slots = ceil((double)SIFS / SLOT);
-	FRAME_slots = lround(FRAME * 8 / (TRANSMISSION_RATE * (10 ^ 6)) / (SLOT * pow(10, -6)));
+	FRAME_slots = lround((FRAME * 8.0) / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	ACK_slots = lround(ACK * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	RTS_slots = lround(RTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	CTS_slots = lround(CTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
-
+	/*
 	// Selection of scenario
 	while (entry) {
 		printf("Select ""Concurrent"" Communications or ""Hidden"" Terminals: ");
@@ -102,11 +112,35 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 	}
+	*/
+	// Poisson output done here, the / 2 part is just to make the set smaller. Without it, it seems the largest time is like 2x more than what is needed within sim time
+	for (int i = 0; i < (SIM_TIME_slots / FRAME_slots / 2); i++) {
+		double uniform_rand_A = 0.0, uniform_rand_C = 0.0;
+		// Mod to get a value between 0-99, / to get a value between 0 to 1
+		uniform_rand_A = (rand() % 100)/100.0;	
+		uniform_rand_C = (rand() % 100)/100.0;	
+		// Calculate the Poisson value, units are sec/frame
+		uniform_rand_A = -(1 / lambda_A)*log(1 - uniform_rand_A);
+		uniform_rand_C = -(1 / lambda_C)*log(1 - uniform_rand_C);
+		// Convert to slots, sec/frame / slot duration = slot/frame, long integer round
+		uniform_rand_A = lround(uniform_rand_A / (SLOT * pow(10, -6)));
+		uniform_rand_C = lround(uniform_rand_C / (SLOT * pow(10, -6)));
+		// Add to vectors
+		a_poisson_set.push_back(uniform_rand_A);
+		c_poisson_set.push_back(uniform_rand_C);
+	}
 
-
-
-	// Poisson output done here
-
+	// Convert Poisson set into an arrival set
+	a_arrival.push_back(a_poisson_set[0]);
+	c_arrival.push_back(c_poisson_set[0]);
+	// Using just a_poisson_set.size() because both a and c should be the same size from the randomizer
+	for (int i = 1; i < a_poisson_set.size(); i++) {
+		int tempSum = 0;
+		tempSum = a_arrival[i - 1] + a_poisson_set[i];
+		a_arrival.push_back(tempSum);
+		tempSum = c_arrival[i - 1] + c_poisson_set[i];
+		c_arrival.push_back(tempSum);
+	}
 
 	/*
 	size = a_arrival.size() + c_arrival.size();
