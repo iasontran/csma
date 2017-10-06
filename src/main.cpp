@@ -59,8 +59,8 @@ int main(int argc, char *argv[]) {
 	std::string metric;
 	std::vector<int> a_back;
 	std::vector<int> c_back;
-	Station a_curr;
-	Station c_curr;
+	double a_curr;
+	double c_curr;
 
 	// Variables for the process
 	bool active_node = false;
