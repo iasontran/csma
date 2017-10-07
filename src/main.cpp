@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 			if (i == 0) {     // condition for beginning of iterations
 				if (a_curr < c_curr) {    // if a arrival is smaller than c, begin transmitting a
 					tot_slots = tot_slots + a_curr + DIFS + a_back;     // add a arrival, DIFS, and a backoff to total slots
-                    if (j + 1 == a_arrival.size()) {
+                    if (j + 1 == a_arrival.size()) {    // if at end of arrival set, mark a arrival set as finished
                         a_done = true;
                     }
                     else {
@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
 				else if (a_curr > c_curr) {       // if c arrival is smaller than a, begin transmitting c
 					active_node = true;     // flag to check which node is active for next if statements
 					tot_slots = tot_slots + c_curr + DIFS + c_back;     // add c arrival, DIFS, and c backoff to total slots
-                    if (k + 1 == c_arrival.size()) {
+                    if (k + 1 == c_arrival.size()) {    // if c arrival set is finished, mark as finished
                         c_done = true;
                     }
                     else {
@@ -229,32 +229,32 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			else {  // for iterations after first
-                if (a_done) {
+                if (a_done) {   // if a set is finished, go through c set
                     active_node = true;
                     tot_slots = tot_slots + DIFS + c_back;
-                    if (k + 1 == c_arrival.size()) {  // if not at end of arrival list, set next arrival
+                    if (k + 1 == c_arrival.size()) {  // if at end of arrival list, set c set as done
                         c_done = true;
                     }
                     else {
-                        k++;
+                        k++;    // increment to next c arrival
                         c_curr = c_arrival.at(k);
                     }
                 }
-                else if (c_done) {
+                else if (c_done) {  // if c set is finished, go through a set
                     active_node = false;
                     tot_slots = tot_slots + DIFS + a_back;
-                    if (j + 1 == a_arrival.size()) {  // if not at end of a arrival list, set next arrival
+                    if (j + 1 == a_arrival.size()) {  // if at end of a arrival list, set a set as done
                         a_done = true;
                     }
                     else {
-                        j++;
+                        j++;    // increment to next a arrival
                         a_curr = a_arrival.at(j);
                     }
                 }
 				else if (a_curr < tot_slots) {    // if a arrival is less than current slot total, begin adding to total slots
                     active_node = false;
                     tot_slots = tot_slots + DIFS + a_back;
-					if (j + 1 == a_arrival.size()) {  // if not at end of a arrival list, set next arrival
+					if (j + 1 == a_arrival.size()) {  // if at end of a arrival list, set a set as done
                         a_done = true;
 					}
                     else {
@@ -265,7 +265,7 @@ int main(int argc, char *argv[]) {
 				else if (c_curr < tot_slots) {    // if c arrival is less than current slot total, begin adding to total slots
 					active_node = true;
 					tot_slots = tot_slots + DIFS + a_back;
-					if (k + 1 == c_arrival.size()) {  // if not at end of arrival list, set next arrival
+					if (k + 1 == c_arrival.size()) {  // if at end of arrival list, set c set as done
                         c_done = true;
 					}
                     else {
