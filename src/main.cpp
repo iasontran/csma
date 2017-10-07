@@ -34,7 +34,7 @@ public:
 };
 
 int backoffgen(int collide, double CW) {
-    int bound = ((2 ^ collide) * CW) - 1;
+    int bound = (pow(2, collide) * CW) - 1;
     int output = rand() % bound;
     return output;
 }
