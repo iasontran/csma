@@ -14,7 +14,7 @@
 // Simulation Parameters
 #define SIM_TIME 10 // in seconds
 #define SLOT 20 // in microseconds
-#define DIFS 40 // in microseconds
+#define DIFS 5 // in microseconds 40 originally
 #define SIFS 10 // in microseconds
 #define CW_MAX 1024 // in slots
 #define CW_0 4 // in slots
@@ -32,6 +32,12 @@ private:
 public:
 
 };
+
+int backoffgen(int collide, double CW) {
+    int bound = ((2 ^ collide) * CW) - 1;
+    int output = rand() % bound;
+    return output;
+}
 
 int main(int argc, char *argv[]) {
 
@@ -57,8 +63,8 @@ int main(int argc, char *argv[]) {
 	// Variables for scenarios??
 	std::string scenario;
 	std::string metric;
-	std::vector<int> a_back;
-	std::vector<int> c_back;
+	int a_back;
+	int c_back;
 	double a_curr;
 	double c_curr;
 
@@ -66,22 +72,25 @@ int main(int argc, char *argv[]) {
 	bool active_node = false;
 	bool next_active = false;
 	bool a_done = false;
-	bool b_done = false;
+	bool c_done = false;
 	bool entry = true;
-	double a_success;
-	double c_success;
-	double collisions;
+	double a_success = 0;
+	double c_success = 0;
+	double collisions = 0;
 	double CW0 = 4; // in slots
 
 	// Converting all units into SLOT time, so that we can increment by doing tot_slot = tot_slot + sifs_slot + difs_slot etc
-	SIM_TIME_slots = lround(SIM_TIME / (SLOT * pow(10,-6)));
+	
+    SIM_TIME_slots = lround(SIM_TIME / (SLOT * pow(10,-6)));
 	DIFS_slots = ceil((double)DIFS / SLOT);
 	SIFS_slots = ceil((double)SIFS / SLOT);
 	FRAME_slots = lround((FRAME * 8.0) / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	ACK_slots = lround(ACK * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	RTS_slots = lround(RTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	CTS_slots = lround(CTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
-	/*
+	
+    
+    /*
 	// Selection of scenario
 	while (entry) {
 		printf("Select ""Concurrent"" Communications or ""Hidden"" Terminals: ");
@@ -113,6 +122,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	*/
+    
+    
 	// Poisson output done here, the / 2 part is just to make the set smaller. Without it, it seems the largest time is like 2x more than what is needed within sim time
 	for (int i = 0; i < (SIM_TIME_slots / FRAME_slots / 2); i++) {
 		double uniform_rand_A = 0.0, uniform_rand_C = 0.0;
@@ -141,29 +152,47 @@ int main(int argc, char *argv[]) {
 		tempSum = c_arrival[i - 1] + c_poisson_set[i];
 		c_arrival.push_back(tempSum);
 	}
+     
 
-	/*
+    double size;
+    
+    // sample sets
+    a_arrival.push_back(100);
+    // 5 + backoff_a + 100 + 1500 + 10 + 30 = 1650
+    c_arrival.push_back(130);
+    // 5 + backoff_a  + 1500 + 10 + 30 = 3198
+	
 	size = a_arrival.size() + c_arrival.size();
 	a_back = backoffgen(0, CW_0);
 	c_back = backoffgen(0, CW_0);
-	a_curr = a_curr.at(0);
-	c_curr = c_curr.at(0);
+    a_curr = a_arrival.at(0);
+	c_curr = c_arrival.at(0);
 	int j = 0;
 	int k = 0;
 
-	while (!(a_done && b_done)) {   // while a and c arrival times still exist
-		for (i = 0; i < size - 1; i++) {    // iterate through size of both lists combined
+	while (!(a_done && c_done)) {   // while a and c arrival times still exist
+		for (int i = 0; i < size; i++) {    // iterate through size of both lists combined
 			if (i == 0) {     // condition for beginning of iterations
 				if (a_curr < c_curr) {    // if a arrival is smaller than c, begin transmitting a
 					tot_slots = tot_slots + a_curr + DIFS + a_back;     // add a arrival, DIFS, and a backoff to total slots
-					j++;
-					a_curr = a_arrival.at(j);       // update current a arrival early for next iteration
+                    if (j + 1 == a_arrival.size()) {
+                        a_done = true;
+                    }
+                    else {
+                        j++;
+                        a_curr = a_arrival.at(j);       // update current a arrival early for next iteration
+                    }
 				}
 				else if (a_curr > c_curr) {       // if c arrival is smaller than a, begin transmitting c
 					active_node = true;     // flag to check which node is active for next if statements
 					tot_slots = tot_slots + c_curr + DIFS + c_back;     // add c arrival, DIFS, and c backoff to total slots
-					k++;
-					c_curr = c_arrival.at(k);   // update current c arrival early for next iteration
+                    if (k + 1 == c_arrival.size()) {
+                        c_done = true;
+                    }
+                    else {
+                        k++;
+                        c_curr = c_arrival.at(k);   // update current c arrival early for next iteration
+                    }
 				}
 				else {  // collision?
 
@@ -172,9 +201,9 @@ int main(int argc, char *argv[]) {
 				if ((active_node == false) && (c_curr < tot_slots)) {     // if a is active and c's arrival is less than current slots with a arrival, DIFS, and backoff added
 					j--;
 					a_curr = a_arrival.at(j);
-					collision++;
-					a_back = backoffgen(collision, CW0);
-					c_back = backoffgen(collision, CW0);
+					collisions++;
+					a_back = backoffgen(collisions, CW0);
+					c_back = backoffgen(collisions, CW0);
 					i--;
 					continue;
 					// collision?
@@ -182,9 +211,9 @@ int main(int argc, char *argv[]) {
 				else if ((active_node == true) && (a_curr < tot_slots)) {     // if c is active and a's arrival is less than current slots with c arrival, DIFS, and backoff added
 					k--;
 					c_curr = c_arrival.at(k);
-					collision++;
-					a_back = backoffgen(collision, CW0);
-					c_back = backoffgen(collision, CW0);
+					collisions++;
+					a_back = backoffgen(collisions, CW0);
+					c_back = backoffgen(collisions, CW0);
 					i--;
 					continue;
 					// collision?
@@ -200,40 +229,69 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			else {  // for iterations after first
-				if (a_curr < c_curr) {    // if a arrival is less than c arrival, begin adding to total slots
-					tot_slots = tot_slots + a_curr + DIFS + a_back;
-					if (j + 1 != a_arrival.size()) {  // if not at end of a arrival list, set next arrival
-						j++;
-						a_curr = a_arrival.at(j);
+                if (a_done) {
+                    active_node = true;
+                    tot_slots = tot_slots + DIFS + c_back;
+                    if (k + 1 == c_arrival.size()) {  // if not at end of arrival list, set next arrival
+                        c_done = true;
+                    }
+                    else {
+                        k++;
+                        c_curr = c_arrival.at(k);
+                    }
+                }
+                else if (c_done) {
+                    active_node = false;
+                    tot_slots = tot_slots + DIFS + a_back;
+                    if (j + 1 == a_arrival.size()) {  // if not at end of a arrival list, set next arrival
+                        a_done = true;
+                    }
+                    else {
+                        j++;
+                        a_curr = a_arrival.at(j);
+                    }
+                }
+				else if (a_curr < tot_slots) {    // if a arrival is less than current slot total, begin adding to total slots
+                    active_node = false;
+                    tot_slots = tot_slots + DIFS + a_back;
+					if (j + 1 == a_arrival.size()) {  // if not at end of a arrival list, set next arrival
+                        a_done = true;
 					}
+                    else {
+                        j++;
+                        a_curr = a_arrival.at(j);
+                    }
 				}
-				else if (a_curr > c_curr) {    // if c arrival is less than a arrival, begin adding to total slots
+				else if (c_curr < tot_slots) {    // if c arrival is less than current slot total, begin adding to total slots
 					active_node = true;
-					tot_slots = tot_slots + a_curr + DIFS + a_back;
-					if (k + 1 != c_arrival.size()) {  // if not at end of arrival list, set next arrival
-						k++;
-						c_curr = c_arrival.at(k);
+					tot_slots = tot_slots + DIFS + a_back;
+					if (k + 1 == c_arrival.size()) {  // if not at end of arrival list, set next arrival
+                        c_done = true;
 					}
+                    else {
+                        k++;
+                        c_curr = c_arrival.at(k);
+                    }
 				}
 				else {
 					// collision?
 				}
 
-				if ((active_node == false) && (c_curr < tot_slots)) {     // if a is active and c's arrival is less than current slots with a arrival, DIFS, and backoff added
+				if ((active_node == false) && (c_curr < tot_slots) && !a_done) {     // if a is active and c's arrival is less than current slots with a arrival, DIFS, and backoff added
 					j--;
 					a_curr = a_arrival.at(j);
-					collision++;
-					a_back = backoffgen(collision, CW0);
-					c_back = backoffgen(collision, CW0);
+					collisions++;
+					a_back = backoffgen(collisions, CW0);
+					c_back = backoffgen(collisions, CW0);
 					i--;
 					continue;
 				}
-				else if ((active_node == true) && (a_curr < tot_slots)) {     // if c is active and a's arrival is less than current slots with c arrival, DIFS, and backoff added
+				else if ((active_node == true) && (a_curr < tot_slots) && !c_done) {     // if c is active and a's arrival is less than current slots with c arrival, DIFS, and backoff added
 					k--;
 					c_curr = c_arrival.at(k);
-					collision++;
-					a_back = backoffgen(collision, CW0);
-					c_back = backoffgen(collision, CW0);
+					collisions++;
+					a_back = backoffgen(collisions, CW0);
+					c_back = backoffgen(collisions, CW0);
 					i--;
 					continue;
 				}
@@ -249,11 +307,4 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-	*/
-}
-
-int backoffgen(int collide, double CW) {
-	int bound = ((2 ^ collide) * CW) - 1;
-	int output = rand() % bound;
-	return output;
 }
