@@ -14,7 +14,7 @@
 // Simulation Parameters
 #define SIM_TIME 10 // in seconds
 #define SLOT 20 // in microseconds
-#define DIFS 5 // in microseconds 40 originally
+#define DIFS 40 // in microseconds
 #define SIFS 10 // in microseconds
 #define CW_MAX 1024 // in slots
 #define CW_0 4 // in slots
