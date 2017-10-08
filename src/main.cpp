@@ -14,12 +14,20 @@ Simulation Parameters
 #define DIFS 40 // in microseconds
 #define SIFS 10 // in microseconds
 #define CW_MAX 1024 // in slots
-#define CW_0 4.0 // in slots
+#define CW_0 4 // in slots
 #define FRAME 1500 // in bytes
 #define ACK 30 // in bytes
 #define RTS 30 // in bytes
 #define CTS 30 // in bytes
 #define TRANSMISSION_RATE 6 // in Mbps
+
+/*
+Define four states, using arbitrary negatives to not conflict with anything else
+*/
+#define A_CA -10
+#define A_VCS -11
+#define B_CA -12
+#define B_VCS -13
 
 /*
 Probably not using????
@@ -40,6 +48,17 @@ int backoffgen(int collide, double CW) {
     int bound = (pow(2, collide) * CW) - 1;
     int output = rand() % bound;
     return output;
+}
+
+/*
+Print scenario options
+*/
+void printOptions() {
+	std::cout << "Select a scenario:\n";
+	std::cout << "A1: Concurrent Communication with CSMA Collision Avoidance\n";
+	std::cout << "A2: Concurrent Communication with CSMA Virtual Carrier Sensing\n";
+	std::cout << "B1: Hidden Terminal Communication with CSMA Collision Avoidance\n";
+	std::cout << "B2: Hidden Terminal Communication with CSMA Virtual Carrier Sensing\n";
 }
 
 int main(int argc, char *argv[]) {
@@ -69,7 +88,7 @@ int main(int argc, char *argv[]) {
 	Variables for selecting scenario
 	*/
 	std::string scenario;
-	std::string metric;
+	int choice;
 	bool entry = true;
 
 	/*
@@ -103,37 +122,31 @@ int main(int argc, char *argv[]) {
     /*
 	Selection of scenario
 	*/
-	/*
 	while (entry) {
-		printf("Select \"Concurrent\" Communications or \"Hidden\" Terminals: ");
+		printOptions();
+		std::cout << "Your choice: ";
 		std::cin >> scenario;
-		if (scenario.compare("Concurrent") == 0) {
+		if (scenario.compare("A1") == 0 || scenario.compare("a1") == 0) {
 			entry = false;
+			choice = A_CA;
 		}
-		else if (scenario.compare("Hidden") == 0) {
+		else if (scenario.compare("A2") == 0 || scenario.compare("a2") == 0) {
 			entry = false;
+			choice = A_VCS;
+		}
+		else if (scenario.compare("B1") == 0 || scenario.compare("b1") == 0) {
+			entry = false;
+			choice = B_CA;
+		}
+		else if (scenario.compare("B2") == 0 || scenario.compare("b2") == 0) {
+			entry = false;
+			choice = B_VCS;
 		}
 		else {
-			printf("Please pick either \"Concurrent\" or \"Hidden\".\n");
-			continue;
+			std::cout << "\nInvalid option, try again.\n\n";
 		}
 	}
-	entry = true;
-	while (entry) {
-		printf("Choose CSMA type (CA or VCS): ");
-		std::cin >> metric;
-		if (metric.compare("CA") == 0) {
-			entry = false;
-		}
-		else if (metric.compare("VCS") == 0) {
-			entry = false;
-		}
-		else {
-			printf("Please pick either \"CA\" or \"VCS\".");
-			continue;
-		}
-	}
-	*/
+
     /*
 	Poisson output done here, the / 2 part is just to make 
 	the set smaller. Without it, it seems the largest time 
@@ -186,103 +199,157 @@ int main(int argc, char *argv[]) {
 	int j = 0;
 	int k = 0;
 
-    // Scenario A, CSMA 1
-	while ( tot_slots < SIM_TIME_slots ) {   // while total time is less than simulated time
-        // fetch arrival time
-        a_curr = a_arrival.at(j);
-        c_curr = c_arrival.at(k);
-        
-        // navigate through a's arrival set if available
+	switch (choice) {
+	case A_CA:	// Scenario A, CSMA
+		while (tot_slots < SIM_TIME_slots) {   // while total time is less than simulated time
+			// fetch arrival time
+			a_curr = a_arrival.at(j);
+			c_curr = c_arrival.at(k);
 
-        // check if current A arrival is earlier than C arrival
-        if ( a_curr < c_curr ) {
-            if ( tot_slots < a_curr ) { // if current total slot is less than current A arrival time
-                tot_slots = a_curr; // set current total slots to A arrival time
-            }
-            
-            // check if C arrival will transmit during A's backoff
-            if ( ( tot_slots + DIFS_slots + a_back ) > c_curr ) {
-                // collision case when backoffs end at same time
-                if ( ( c_curr + DIFS_slots + c_back ) == ( tot_slots + DIFS_slots + a_back ) ) {
-                    tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
-                    collisions++;
-                    a_back = backoffgen(collisions, CW_0);
-                    c_back = backoffgen(collisions, CW_0);
-                    continue;
-                } else {    // no collision, but check earlier packet
-                    // if A transmits earlier than C
-                    if ( (( tot_slots + DIFS_slots + a_back ) - ( c_curr + DIFS_slots + c_back )) < 0 ) {   // should be negative if A transmits earlier than C
-                        c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
-                        tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
-                        a_success++;    // increment for successful A transmission
-                    } else {    // C transmits earlier than A
-                        a_back = (tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back);    // calculate new backoff for A
-                        tot_slots = c_curr + DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to C's ACK slot
-                        c_success++;    // increment for successful C transmission
-                    }
-                }
-            } else {    // when A successfully transmits
-                tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // add DIFS, backoff, frame, SIFS, and ack to total slots
-                a_success++;    // increment successful A transmission
-                collisions = 0; // reset collision count (not sure if necessary) **
-                j++;    // increment to next A arrival slot
-            }
-        } else if ( c_curr < a_curr ) { // current C arrival is earlier than A arrival
-            if ( tot_slots < c_curr ) { // if total slots is less than current C arrival time
-                tot_slots = c_curr;
-            }
-            
-            // check if A arrival will transmit during C's backoff
-            if ( ( tot_slots + DIFS_slots + c_back ) > a_curr ) {
-                // collision case when backoffs end at same time
-                if ( ( a_curr + DIFS_slots + a_back ) == ( tot_slots + DIFS_slots + c_back ) ) {
-                    tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
-                    collisions++;
-                    a_back = backoffgen(collisions, CW_0);
-                    c_back = backoffgen(collisions, CW_0);
-                    continue;
-                } else {    // no collision, but check earlier packet
-                    // if C transmits earlier than A
-                    if ( (( tot_slots + DIFS_slots + c_back ) - ( a_curr + DIFS_slots + a_back )) < 0 ) {   // should be negative if C transmits earlier than A
-                        a_back = (a_curr + DIFS_slots + a_back) - (tot_slots + DIFS_slots + c_back);    // calculate new backoff for C
-                        tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
-                        c_success++;    // increment for successful A transmission
-                    } else {    // A transmits earlier than C
-                        c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
-                        tot_slots = a_curr + DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to A's ACK slot
-                        a_success++;    // increment for successful C transmission
-                    }
-                }
-            } else {    // when C successfully transmits
-                tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // add DIFS, backoff, frame, SIFS, and ack to total slots
-                c_success++;    // increment successful A transmission
-                collisions = 0; // reset collision count (not sure if necessary) **
-                k++;    // increment to next A arrival slot
-            }
-        } else {    // A and C arrivals are tied
-            // assign either current arrival as current slot
-            tot_slots = a_curr;
-            if ( ( a_curr + DIFS_slots + a_back ) == ( c_curr + DIFS_slots + c_back ) ) {   // when backoffs end at same time, collision will occur
-                tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // use either backoff to move current slot to ACK slot
-                collisions++;
-                a_back = backoffgen(collisions, CW_0);
-                c_back = backoffgen(collisions, CW_0);
-                continue;
-            } else {    // determine which set has earlier backoff time
-                // if A transmits earlier than C
-                if ( (( tot_slots + DIFS_slots + a_back ) - ( c_curr + DIFS_slots + c_back )) < 0 ) {   // should be negative if A transmits earlier than C
-                    c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
-                    tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
-                    a_success++;    // increment for successful A transmission
-                } else {    // C transmits earlier than A
-                    a_back = (tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back);    // calculate new backoff for A
-                    tot_slots = c_curr + DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to C's ACK slot
-                    c_success++;    // increment for successful C transmission
-                }
-            }
-        }
-    }
+			// navigate through a's arrival set if available
+
+			// check if current A arrival is earlier than C arrival
+			if (a_curr < c_curr) {
+				if (tot_slots < a_curr) { // if current total slot is less than current A arrival time
+					tot_slots = a_curr; // set current total slots to A arrival time
+				}
+
+				// check if C arrival will transmit during A's backoff
+				if ((tot_slots + DIFS_slots + a_back) > c_curr) {
+					// collision case when backoffs end at same time
+					if ((c_curr + DIFS_slots + c_back) == (tot_slots + DIFS_slots + a_back)) {
+						tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
+						collisions++;
+						a_back = backoffgen(collisions, CW_0);
+						c_back = backoffgen(collisions, CW_0);
+						continue;
+					}
+					else {    // no collision, but check earlier packet
+						// if A transmits earlier than C
+						if (((tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back)) < 0) {   // should be negative if A transmits earlier than C
+							c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
+							tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
+							a_success++;    // increment for successful A transmission
+						}
+						else {    // C transmits earlier than A
+							a_back = (tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back);    // calculate new backoff for A
+							tot_slots = c_curr + DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to C's ACK slot
+							c_success++;    // increment for successful C transmission
+						}
+					}
+				}
+				else {    // when A successfully transmits
+					tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // add DIFS, backoff, frame, SIFS, and ack to total slots
+					a_success++;    // increment successful A transmission
+					collisions = 0; // reset collision count (not sure if necessary) **
+					j++;    // increment to next A arrival slot
+				}
+			}
+			else if (c_curr < a_curr) { // current C arrival is earlier than A arrival
+				if (tot_slots < c_curr) { // if total slots is less than current C arrival time
+					tot_slots = c_curr;
+				}
+
+				// check if A arrival will transmit during C's backoff
+				if ((tot_slots + DIFS_slots + c_back) > a_curr) {
+					// collision case when backoffs end at same time
+					if ((a_curr + DIFS_slots + a_back) == (tot_slots + DIFS_slots + c_back)) {
+						tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
+						collisions++;
+						a_back = backoffgen(collisions, CW_0);
+						c_back = backoffgen(collisions, CW_0);
+						continue;
+					}
+					else {    // no collision, but check earlier packet
+						// if C transmits earlier than A
+						if (((tot_slots + DIFS_slots + c_back) - (a_curr + DIFS_slots + a_back)) < 0) {   // should be negative if C transmits earlier than A
+							a_back = (a_curr + DIFS_slots + a_back) - (tot_slots + DIFS_slots + c_back);    // calculate new backoff for C
+							tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
+							c_success++;    // increment for successful A transmission
+						}
+						else {    // A transmits earlier than C
+							c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
+							tot_slots = a_curr + DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to A's ACK slot
+							a_success++;    // increment for successful C transmission
+						}
+					}
+				}
+				else {    // when C successfully transmits
+					tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // add DIFS, backoff, frame, SIFS, and ack to total slots
+					c_success++;    // increment successful A transmission
+					collisions = 0; // reset collision count (not sure if necessary) **
+					k++;    // increment to next A arrival slot
+				}
+			}
+			else {    // A and C arrivals are tied
+				// assign either current arrival as current slot
+				tot_slots = a_curr;
+				if ((a_curr + DIFS_slots + a_back) == (c_curr + DIFS_slots + c_back)) {   // when backoffs end at same time, collision will occur
+					tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // use either backoff to move current slot to ACK slot
+					collisions++;
+					a_back = backoffgen(collisions, CW_0);
+					c_back = backoffgen(collisions, CW_0);
+					continue;
+				}
+				else {    // determine which set has earlier backoff time
+					// if A transmits earlier than C
+					if (((tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back)) < 0) {   // should be negative if A transmits earlier than C
+						c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
+						tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
+						a_success++;    // increment for successful A transmission
+					}
+					else {    // C transmits earlier than A
+						a_back = (tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back);    // calculate new backoff for A
+						tot_slots = c_curr + DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to C's ACK slot
+						c_success++;    // increment for successful C transmission
+					}
+				}
+			}
+		}
+
+		break;
+	case A_VCS:	// Scenario A, CSMA 2
     
-    // Scenario B, CSMA 1
+		break;
+	case B_CA:	// Scenario B, CSMA 1
     
+		break;
+	case B_VCS:	// Scenario B, CSMA 2
+    
+		break;
+	}
 }
+
+
+// OLD SCENARIO SELECTION
+/*
+	while (entry) {
+		printf("Select \"Concurrent\" Communications or \"Hidden\" Terminals: ");
+		std::cin >> scenario;
+		if (scenario.compare("Concurrent") == 0) {
+			entry = false;
+		}
+		else if (scenario.compare("Hidden") == 0) {
+			entry = false;
+		}
+		else {
+			printf("Please pick either \"Concurrent\" or \"Hidden\".\n");
+			continue;
+		}
+	}
+	entry = true;
+	while (entry) {
+		printf("Choose CSMA type (CA or VCS): ");
+		std::cin >> metric;
+		if (metric.compare("CA") == 0) {
+			entry = false;
+		}
+		else if (metric.compare("VCS") == 0) {
+			entry = false;
+		}
+		else {
+			printf("Please pick either \"CA\" or \"VCS\".");
+			continue;
+		}
+	}
+*/
