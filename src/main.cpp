@@ -1,29 +1,29 @@
-#define _CRT_SECURE_NO_WARNINGS 
-/*
-*
-*/
-
 #include <iostream>
 #include <string>
-#include <cmath>
-#include <ctime>
-#include <cstdio>
 #include <vector>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
+#include <ctime>
 
-// Simulation Parameters
+/*
+Simulation Parameters
+*/
 #define SIM_TIME 10 // in seconds
 #define SLOT 20 // in microseconds
 #define DIFS 40 // in microseconds
 #define SIFS 10 // in microseconds
 #define CW_MAX 1024 // in slots
-#define CW_0 4 // in slots
+#define CW_0 4.0 // in slots
 #define FRAME 1500 // in bytes
 #define ACK 30 // in bytes
 #define RTS 30 // in bytes
 #define CTS 30 // in bytes
 #define TRANSMISSION_RATE 6 // in Mbps
 
+/*
+Probably not using????
+*/
 class Station {
 private:
 	std::string id;
@@ -33,6 +33,9 @@ public:
 
 };
 
+/*
+Function to generate the backoff value
+*/
 int backoffgen(int collide, double CW) {
     int bound = (pow(2, collide) * CW) - 1;
     int output = rand() % bound;
@@ -41,10 +44,14 @@ int backoffgen(int collide, double CW) {
 
 int main(int argc, char *argv[]) {
 
-	// Set the time seed
+	/*
+	Set the time seed
+	*/
 	srand((int)time(0));
 
-	// Simulation Variables in Slots
+	/*
+	Simulation Variables in Slots
+	*/
 	double tot_slots = 0.0;
 	double SIM_TIME_slots = 0.0;
 	double DIFS_slots = 0.0;
@@ -58,33 +65,33 @@ int main(int argc, char *argv[]) {
     double A_SLOTS = 0.0;
     double C_SLOTS = 0.0;
 
-	// Variables for A and C nodes
-	std::vector<double> a_arrival, c_arrival;	//std::vector someVal, someVal.push_back(val) << adds to end of list
-	std::vector <double> a_poisson_set, c_poisson_set;	// The set of randomized values in slots
-	
-	// Variables for scenarios??
+	/*
+	Variables for selecting scenario
+	*/
 	std::string scenario;
 	std::string metric;
-	int a_back;
-	int c_back;
-	double a_curr;
-	double c_curr;
+	bool entry = true;
 
-	// Variables for the process
+	/*
+	Variables for nodes A and C
+	*/
+	std::vector<double> a_poisson_set, c_poisson_set;	// The set of randomized values in slots
+	std::vector<double> a_arrival, c_arrival;			// List of converted arrival times (summed up poisson set)
+	double a_curr, c_curr;								// Current arrival time from a_arrival and c_arrival
+	int a_back, c_back;									// Backoff value (randomly generated)
+	int a_success = 0, c_success = 0;					// Number of successful transmissions
+	int a_collisions = 0, c_collisions = 0, collisions = 0;	// Number of collisions
+
+	// Variables for the other processes??????
 	bool active_node = false;
 	bool next_active = false;
 	bool a_done = false;
 	bool c_done = false;
-	bool entry = true;
-	double a_success = 0;
-	double c_success = 0;
-    double a_collisions = 0;
-    double c_collisions = 0;
-	double collisions = 0;
-	double CW0 = 4; // in slots
 
-	// Converting all units into SLOT time, so that we can increment by doing tot_slot = tot_slot + sifs_slot + difs_slot etc
-	
+	/*
+	Converting all units into SLOT time. We can increment by doing:
+	tot_slot += DIFS_slots + (a_back or c_back) + FRAME_slots + SIFS_slots + ACK_slots; 
+	*/
     SIM_TIME_slots = lround(SIM_TIME / (SLOT * pow(10,-6)));
 	DIFS_slots = ceil((double)DIFS / SLOT);
 	SIFS_slots = ceil((double)SIFS / SLOT);
@@ -92,12 +99,13 @@ int main(int argc, char *argv[]) {
 	ACK_slots = lround(ACK * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	RTS_slots = lround(RTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
 	CTS_slots = lround(CTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
-	
     
     /*
-	// Selection of scenario
+	Selection of scenario
+	*/
+	/*
 	while (entry) {
-		printf("Select ""Concurrent"" Communications or ""Hidden"" Terminals: ");
+		printf("Select \"Concurrent\" Communications or \"Hidden\" Terminals: ");
 		std::cin >> scenario;
 		if (scenario.compare("Concurrent") == 0) {
 			entry = false;
@@ -112,23 +120,25 @@ int main(int argc, char *argv[]) {
 	}
 	entry = true;
 	while (entry) {
-		printf("Choose CSMA type (CA or CA/VC): ");
+		printf("Choose CSMA type (CA or VCS): ");
 		std::cin >> metric;
 		if (metric.compare("CA") == 0) {
 			entry = false;
 		}
-		else if (metric.compare("CA/VC") == 0) {
+		else if (metric.compare("VCS") == 0) {
 			entry = false;
 		}
 		else {
-			printf("Please pick either \"CA\" or \"CA/VC\".");
+			printf("Please pick either \"CA\" or \"VCS\".");
 			continue;
 		}
 	}
 	*/
-    
-    
-	// Poisson output done here, the / 2 part is just to make the set smaller. Without it, it seems the largest time is like 2x more than what is needed within sim time
+    /*
+	Poisson output done here, the / 2 part is just to make 
+	the set smaller. Without it, it seems the largest time 
+	is roughly 2x more than what is needed within sim time
+	*/
 	for (int i = 0; i < (SIM_TIME_slots / FRAME_slots / 2); i++) {
 		double uniform_rand_A = 0.0, uniform_rand_C = 0.0;
 		// Mod to get a value between 0-99, / to get a value between 0 to 1
@@ -145,16 +155,24 @@ int main(int argc, char *argv[]) {
 		c_poisson_set.push_back(uniform_rand_C);
 	}
 
-	// Convert Poisson set into an arrival set
+	/*
+	Convert Poisson set into an arrival set
+	*/
 	a_arrival.push_back(a_poisson_set[0]);
 	c_arrival.push_back(c_poisson_set[0]);
 	// Using just a_poisson_set.size() because both a and c should be the same size from the randomizer
 	for (int i = 1; i < a_poisson_set.size(); i++) {
 		int tempSum = 0;
-		tempSum = a_arrival[i - 1] + a_poisson_set[i];
-		a_arrival.push_back(tempSum);
-		tempSum = c_arrival[i - 1] + c_poisson_set[i];
-		c_arrival.push_back(tempSum);
+		// Only push to the a_arrival if the next arrival is still within simulation limit
+		if (a_arrival[i - 1] + a_poisson_set[i] < SIM_TIME_slots) {		
+			tempSum = a_arrival[i - 1] + a_poisson_set[i];
+			a_arrival.push_back(tempSum);
+		}
+		// Only push to the c_arrival if the next arrival is still within simulation limit
+		if (c_arrival[i - 1] + c_poisson_set[i] < SIM_TIME_slots) {		
+			tempSum = c_arrival[i - 1] + c_poisson_set[i];
+			c_arrival.push_back(tempSum);
+		}
 	}
      
 
@@ -188,8 +206,8 @@ int main(int argc, char *argv[]) {
                 if ( ( c_curr + DIFS_slots + c_back ) == ( tot_slots + DIFS_slots + a_back ) ) {
                     tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
                     collisions++;
-                    a_back = backoffgen(collisions, CW0);
-                    c_back = backoffgen(collisions, CW0);
+                    a_back = backoffgen(collisions, CW_0);
+                    c_back = backoffgen(collisions, CW_0);
                     continue;
                 } else {    // no collision, but check earlier packet
                     // if A transmits earlier than C
@@ -220,8 +238,8 @@ int main(int argc, char *argv[]) {
                 if ( ( a_curr + DIFS_slots + a_back ) == ( tot_slots + DIFS_slots + c_back ) ) {
                     tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
                     collisions++;
-                    a_back = backoffgen(collisions, CW0);
-                    c_back = backoffgen(collisions, CW0);
+                    a_back = backoffgen(collisions, CW_0);
+                    c_back = backoffgen(collisions, CW_0);
                     continue;
                 } else {    // no collision, but check earlier packet
                     // if C transmits earlier than A
@@ -247,8 +265,8 @@ int main(int argc, char *argv[]) {
             if ( ( a_curr + DIFS_slots + a_back ) == ( c_curr + DIFS_slots + c_back ) ) {   // when backoffs end at same time, collision will occur
                 tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // use either backoff to move current slot to ACK slot
                 collisions++;
-                a_back = backoffgen(collisions, CW0);
-                c_back = backoffgen(collisions, CW0);
+                a_back = backoffgen(collisions, CW_0);
+                c_back = backoffgen(collisions, CW_0);
                 continue;
             } else {    // determine which set has earlier backoff time
                 // if A transmits earlier than C
