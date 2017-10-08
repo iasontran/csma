@@ -45,8 +45,17 @@ public:
 Function to generate the backoff value
 */
 int backoffgen(int collide, double CW) {
-    int bound = (pow(2, collide) * CW) - 1;
-    int output = rand() % bound;
+	int bound = (pow(2, collide) * CW) - 1;
+	int output;
+	bool done = false;
+
+	while (!done) {	// Keep generating new backoff but must be less than CW_MAX
+		output = abs(rand() % bound);
+		if (output < CW_MAX) {
+			done = true;
+		}
+	}
+
     return output;
 }
 
@@ -190,7 +199,6 @@ int main(int argc, char *argv[]) {
      
 
     double size;
-	
 	size = a_arrival.size() + c_arrival.size();
 	a_back = backoffgen(0, CW_0);
 	c_back = backoffgen(0, CW_0);
@@ -309,7 +317,83 @@ int main(int argc, char *argv[]) {
 
 		break;
 	case A_VCS:	// Scenario A, CSMA 2
-    
+		while (tot_slots < SIM_TIME_slots) {
+			int a_index = 0, c_index = 0;
+			// Every new slot transmission will have at least DIFS, calling it running because current is being used.
+			int running_slot = DIFS_slots;	
+			int RTS_NAV = RTS_slots + SIFS_slots + CTS_slots + SIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+
+			/*
+			If total slot is currently idle, and no queue, jump ahead.
+			Ex1: tot_slots = 0, a_curr = 130 and c_curr = 180, this will jump to 130.
+			Ex2: tot_slots = 512, a_curr = 921 and c_curr = 802, this will jump to 802.
+			*/
+			if (tot_slots < a_curr && tot_slots < c_curr) {
+				(a_curr <= c_curr) ? (tot_slots = a_curr) : (tot_slots = c_curr);
+			}
+
+			
+			if (a_curr == c_curr) {
+				// If backoffs are the same, increment collision
+				if (a_back == c_back) {
+					collisions++;
+				}
+				// Generate new backoffs until no longer same
+				while (a_back == c_back) {
+					a_back = backoffgen(collisions, CW_0);
+					c_back = backoffgen(collisions, CW_0);
+				}
+				// Decrement backoff until one is 0, adding time to tempSlot.
+				(a_back < c_back) ? (a_index++) : (c_index++);
+				while (a_back != 0 && c_back != 0) {
+					a_back--;
+					c_back--;
+					running_slot++;
+				}
+				// Check which one hit 0 first, update and generate new backoff
+				if (a_back == 0) {
+					running_slot += RTS_NAV;
+					a_back = backoffgen(collisions, CW_0);
+				}
+				else {
+					running_slot += RTS_NAV;
+					c_back = backoffgen(collisions, CW_0);
+				}
+			}
+			else if (a_curr < c_curr) {
+				// Move a_index to next arrival since we're processing this one
+				a_index++;
+
+				// If backoffs are the same, increment collision
+				if (  (a_curr > tot_slots ? a_curr : tot_slots) + a_back + DIFS_slots >= c_curr + DIFS_slots ) {
+					collisions++;
+				}
+
+				while ( (a_curr > tot_slots ? a_curr : tot_slots) + a_back + DIFS_slots >= c_curr + DIFS_slots ) {
+					a_back = backoffgen(collisions, CW_0);
+					c_back = backoffgen(collisions, CW_0);
+				}
+
+				// Decrement backoff until one is 0, adding time to tempSlot.
+				while (a_back != 0) {
+					a_back--;
+					c_back--;
+					running_slot++;
+				}
+				// Check which one hit 0 first, update and generate new backoff
+				running_slot += RTS_NAV;
+				a_back = backoffgen(collisions, CW_0);
+			}
+			else {
+
+			}
+
+			// Update tot_slot, a_curr, c_curr
+			tot_slots += running_slot;	// Add the running slot to the total slow
+			a_curr = a_arrival.at(a_index);
+			c_curr = c_arrival.at(c_index);
+			
+		}
 		break;
 	case B_CA:	// Scenario B, CSMA 1
     
@@ -320,6 +404,13 @@ int main(int argc, char *argv[]) {
 	}
 }
 
+/*
+SMA/CA with virtual carrier sensing enabled:
+RTS and CTS frames are exchanged before the transmission  of  a  frame.   
+If  RTS  transmissions  collide,  stations  invoke  the  exponential  backoff
+mechanism outlined in 1(c).  Otherwise,  stations that overhear an RTS/CTS message 
+defer from transmission for the time indicated in the NAV vector
+*/
 
 // OLD SCENARIO SELECTION
 /*
