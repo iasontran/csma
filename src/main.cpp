@@ -55,6 +55,8 @@ int main(int argc, char *argv[]) {
 	double CTS_slots = 0.0;
 	double lambda_A = 200.0;	// set of 50, 100, 200, 300 frame/sec
 	double lambda_C = 200.0;	// set of 50, 100, 200, 300 frame/sec
+    double A_SLOTS = 0.0;
+    double C_SLOTS = 0.0;
 
 	// Variables for A and C nodes
 	std::vector<double> a_arrival, c_arrival;	//std::vector someVal, someVal.push_back(val) << adds to end of list
@@ -76,6 +78,8 @@ int main(int argc, char *argv[]) {
 	bool entry = true;
 	double a_success = 0;
 	double c_success = 0;
+    double a_collisions = 0;
+    double c_collisions = 0;
 	double collisions = 0;
 	double CW0 = 4; // in slots
 
@@ -155,12 +159,6 @@ int main(int argc, char *argv[]) {
      
 
     double size;
-    
-    // sample sets
-    a_arrival.push_back(100);
-    // 5 + backoff_a + 100 + 1500 + 10 + 30 = 1650
-    c_arrival.push_back(130);
-    // 5 + backoff_a  + 1500 + 10 + 30 = 3198
 	
 	size = a_arrival.size() + c_arrival.size();
 	a_back = backoffgen(0, CW_0);
@@ -170,141 +168,115 @@ int main(int argc, char *argv[]) {
 	int j = 0;
 	int k = 0;
 
-	while (!(a_done && c_done)) {   // while a and c arrival times still exist
-		for (int i = 0; i < size; i++) {    // iterate through size of both lists combined
-			if (i == 0) {     // condition for beginning of iterations
-				if (a_curr < c_curr) {    // if a arrival is smaller than c, begin transmitting a
-					tot_slots = tot_slots + a_curr + DIFS + a_back;     // add a arrival, DIFS, and a backoff to total slots
-                    if (j + 1 == a_arrival.size()) {    // if at end of arrival set, mark a arrival set as finished
+    // Scenario A, CSMA 1
+	while ( tot_slots < SIM_TIME_slots ) {   // while total time is less than simulated time
+        // fetch arrival time
+        a_curr = a_arrival.at(j);
+        c_curr = c_arrival.at(k);
+        
+        // navigate through a's arrival set if available
+        if ( !a_done ) {
+            // check if current A arrival is earlier than C arrival
+            if ( a_curr < c_curr ) {
+                tot_slots = a_curr; // set current total slots to A arrival time
+                
+                // check if C arrival will transmit during A's backoff
+                if ( ( tot_slots + DIFS_slots + a_back ) > c_curr ) {
+                    // collision case when backoffs end at same time
+                    if ( ( c_curr + DIFS_slots + c_back ) == ( tot_slots + DIFS_slots + a_back ) ) {
+                        tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
+                        collisions++;
+                        a_back = backoffgen(collisions, CW0);
+                        c_back = backoffgen(collisions, CW0);
+                        continue;
+                    } else {    // no collision, but check earlier packet
+                        // if A transmits earlier than C
+                        if ( (( tot_slots + DIFS_slots + a_back ) - ( c_curr + DIFS_slots + c_back )) < 0 ) {   // should be negative if A transmits earlier than C
+                            c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
+                            tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
+                            a_success++;    // increment for successful A transmission
+                        } else {    // C transmits earlier than A
+                            a_back = (tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back);    // calculate new backoff for A
+                            tot_slots = c_curr + DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to C's ACK slot
+                            c_success++;    // increment for successful C transmission
+                        }
+                    }
+                } else {    // when A successfully transmits
+                    tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // add DIFS, backoff, frame, SIFS, and ack to total slots
+                    a_success++;    // increment successful A transmission
+                    collisions = 0; // reset collision count (not sure if necessary) **
+                    
+                    // check if A arrival set is finished
+                    if ( j + 1 == a_arrival.size() ) {
                         a_done = true;
-                    }
-                    else {
-                        j++;
-                        a_curr = a_arrival.at(j);       // update current a arrival early for next iteration
-                    }
-				}
-				else if (a_curr > c_curr) {       // if c arrival is smaller than a, begin transmitting c
-					active_node = true;     // flag to check which node is active for next if statements
-					tot_slots = tot_slots + c_curr + DIFS + c_back;     // add c arrival, DIFS, and c backoff to total slots
-                    if (k + 1 == c_arrival.size()) {    // if c arrival set is finished, mark as finished
-                        c_done = true;
-                    }
-                    else {
-                        k++;
-                        c_curr = c_arrival.at(k);   // update current c arrival early for next iteration
-                    }
-				}
-				else {  // collision?
-
-				}
-
-				if ((active_node == false) && (c_curr < tot_slots)) {     // if a is active and c's arrival is less than current slots with a arrival, DIFS, and backoff added
-					j--;
-					a_curr = a_arrival.at(j);
-					collisions++;
-					a_back = backoffgen(collisions, CW0);
-					c_back = backoffgen(collisions, CW0);
-					i--;
-					continue;
-					// collision?
-				}
-				else if ((active_node == true) && (a_curr < tot_slots)) {     // if c is active and a's arrival is less than current slots with c arrival, DIFS, and backoff added
-					k--;
-					c_curr = c_arrival.at(k);
-					collisions++;
-					a_back = backoffgen(collisions, CW0);
-					c_back = backoffgen(collisions, CW0);
-					i--;
-					continue;
-					// collision?
-				}
-				else {      // if no possible collision, add frame data, sifs, and ack time to total slots
-					tot_slots = tot_slots + FRAME + SIFS + ACK;
-					if (active_node == false) {   // if a successfully sent frame, increment a success counter
-						a_success++;
-					}
-					else {  // if c successfully sent frame, increment c success counter
-						c_success++;
-					}
-				}
-			}
-			else {  // for iterations after first
-                if (a_done) {   // if a set is finished, go through c set
-                    active_node = true;
-                    tot_slots = tot_slots + DIFS + c_back;
-                    if (k + 1 == c_arrival.size()) {  // if at end of arrival list, set c set as done
-                        c_done = true;
-                    }
-                    else {
-                        k++;    // increment to next c arrival
-                        c_curr = c_arrival.at(k);
+                    } else {
+                        j++;    // increment to next A arrival slot
                     }
                 }
-                else if (c_done) {  // if c set is finished, go through a set
-                    active_node = false;
-                    tot_slots = tot_slots + DIFS + a_back;
-                    if (j + 1 == a_arrival.size()) {  // if at end of a arrival list, set a set as done
-                        a_done = true;
+            } else if ( c_curr < a_curr ) { // current C arrival is earlier than A arrival
+                tot_slots = c_curr;
+                
+                // check if A arrival will transmit during C's backoff
+                if ( ( tot_slots + DIFS_slots + c_back ) > a_curr ) {
+                    // collision case when backoffs end at same time
+                    if ( ( a_curr + DIFS_slots + a_back ) == ( tot_slots + DIFS_slots + c_back ) ) {
+                        tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
+                        collisions++;
+                        a_back = backoffgen(collisions, CW0);
+                        c_back = backoffgen(collisions, CW0);
+                        continue;
+                    } else {    // no collision, but check earlier packet
+                        // if C transmits earlier than A
+                        if ( (( tot_slots + DIFS_slots + c_back ) - ( a_curr + DIFS_slots + a_back )) < 0 ) {   // should be negative if C transmits earlier than A
+                            a_back = (a_curr + DIFS_slots + a_back) - (tot_slots + DIFS_slots + c_back);    // calculate new backoff for C
+                            tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
+                            c_success++;    // increment for successful A transmission
+                        } else {    // A transmits earlier than C
+                            c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
+                            tot_slots = a_curr + DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to A's ACK slot
+                            a_success++;    // increment for successful C transmission
+                        }
                     }
-                    else {
-                        j++;    // increment to next a arrival
-                        a_curr = a_arrival.at(j);
+                } else {    // when C successfully transmits
+                    tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // add DIFS, backoff, frame, SIFS, and ack to total slots
+                    c_success++;    // increment successful A transmission
+                    collisions = 0; // reset collision count (not sure if necessary) **
+                    
+                    // check if A arrival set is finished
+                    if ( j + 1 == a_arrival.size() ) {
+                        a_done = true;
+                    } else {
+                        k++;    // increment to next A arrival slot
                     }
                 }
-				else if (a_curr < tot_slots) {    // if a arrival is less than current slot total, begin adding to total slots
-                    active_node = false;
-                    tot_slots = tot_slots + DIFS + a_back;
-					if (j + 1 == a_arrival.size()) {  // if at end of a arrival list, set a set as done
-                        a_done = true;
-					}
-                    else {
-                        j++;
-                        a_curr = a_arrival.at(j);
+            } else {    // A and C arrivals are tied
+                // assign either current arrival as current slot
+                tot_slots = a_curr;
+                if ( ( a_curr + DIFS_slots + a_back ) == ( c_curr + DIFS_slots + c_back ) ) {   // when backoffs end at same time, collision will occur
+                    tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // use either backoff to move current slot to ACK slot
+                    collisions++;
+                    a_back = backoffgen(collisions, CW0);
+                    c_back = backoffgen(collisions, CW0);
+                    continue;
+                } else {    // determine which set has earlier backoff time
+                    // if A transmits earlier than C
+                    if ( (( tot_slots + DIFS_slots + a_back ) - ( c_curr + DIFS_slots + c_back )) < 0 ) {   // should be negative if A transmits earlier than C
+                        c_back = (c_curr + DIFS_slots + c_back) - (tot_slots + DIFS_slots + a_back);    // calculate new backoff for C
+                        tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to ACK slot
+                        a_success++;    // increment for successful A transmission
+                    } else {    // C transmits earlier than A
+                        a_back = (tot_slots + DIFS_slots + a_back) - (c_curr + DIFS_slots + c_back);    // calculate new backoff for A
+                        tot_slots = c_curr + DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // move current total slots to C's ACK slot
+                        c_success++;    // increment for successful C transmission
                     }
-				}
-				else if (c_curr < tot_slots) {    // if c arrival is less than current slot total, begin adding to total slots
-					active_node = true;
-					tot_slots = tot_slots + DIFS + a_back;
-					if (k + 1 == c_arrival.size()) {  // if at end of arrival list, set c set as done
-                        c_done = true;
-					}
-                    else {
-                        k++;
-                        c_curr = c_arrival.at(k);
-                    }
-				}
-				else {
-					// collision?
-				}
-
-				if ((active_node == false) && (c_curr < tot_slots) && !a_done) {     // if a is active and c's arrival is less than current slots with a arrival, DIFS, and backoff added
-					j--;
-					a_curr = a_arrival.at(j);
-					collisions++;
-					a_back = backoffgen(collisions, CW0);
-					c_back = backoffgen(collisions, CW0);
-					i--;
-					continue;
-				}
-				else if ((active_node == true) && (a_curr < tot_slots) && !c_done) {     // if c is active and a's arrival is less than current slots with c arrival, DIFS, and backoff added
-					k--;
-					c_curr = c_arrival.at(k);
-					collisions++;
-					a_back = backoffgen(collisions, CW0);
-					c_back = backoffgen(collisions, CW0);
-					i--;
-					continue;
-				}
-				else {      // if no possible collision, add frame data, sifs, and ack time to total slots
-					tot_slots = tot_slots + FRAME + SIFS + ACK;
-					if (active_node == false) {   // if a successfully sent frame, increment a success counter
-						a_success++;
-					}
-					else {  // if c successfully sent frame, increment c success counter
-						c_success++;
-					}
-				}
-			}
+                }
+            }
 		}
+        
+        
 	}
+    
+    // vitrual carrier sensing
+    
+    
 }
