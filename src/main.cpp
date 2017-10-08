@@ -178,7 +178,9 @@ int main(int argc, char *argv[]) {
 
         // check if current A arrival is earlier than C arrival
         if ( a_curr < c_curr ) {
-            tot_slots = a_curr; // set current total slots to A arrival time
+            if ( tot_slots < a_curr ) { // if current total slot is less than current A arrival time
+                tot_slots = a_curr; // set current total slots to A arrival time
+            }
             
             // check if C arrival will transmit during A's backoff
             if ( ( tot_slots + DIFS_slots + a_back ) > c_curr ) {
@@ -208,7 +210,9 @@ int main(int argc, char *argv[]) {
                 j++;    // increment to next A arrival slot
             }
         } else if ( c_curr < a_curr ) { // current C arrival is earlier than A arrival
-            tot_slots = c_curr;
+            if ( tot_slots < c_curr ) { // if total slots is less than current C arrival time
+                tot_slots = c_curr;
+            }
             
             // check if A arrival will transmit during C's backoff
             if ( ( tot_slots + DIFS_slots + c_back ) > a_curr ) {
@@ -260,5 +264,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    
+    // Scenario B, CSMA 1
     
 }
