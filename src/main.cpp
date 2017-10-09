@@ -1,77 +1,8 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
+#include "simDefinitions.h"
+#include "scenario.h"
 #include <ctime>
 
-/*
-Simulation Parameters
-*/
-#define SIM_TIME 10 // in seconds
-#define SLOT 20 // in microseconds
-#define DIFS 40 // in microseconds
-#define SIFS 10 // in microseconds
-#define CW_MAX 1024 // in slots
-#define CW_0 4 // in slots
-#define FRAME 1500 // in bytes
-#define ACK 30 // in bytes
-#define RTS 30 // in bytes
-#define CTS 30 // in bytes
-#define TRANSMISSION_RATE 6 // in Mbps
-
-/*
-Define four states, using arbitrary negatives to not conflict with anything else
-*/
-#define A_CA -10
-#define A_VCS -11
-#define B_CA -12
-#define B_VCS -13
-
-/*
-Probably not using????
-*/
-class Station {
-private:
-	std::string id;
-	std::string data;
-	std::string toStation;
-public:
-
-};
-
-/*
-Function to generate the backoff value
-*/
-int backoffgen(int collide, double CW) {
-	int bound = 0;
-	double output;
-	
-	if ( pow(2, collide) > CW_MAX) {
-        bound = pow(2, CW_MAX)*CW;
-    } else {
-        bound = pow(2, collide)*CW;
-    }
-    
-    output = rand() % bound;
-
-    return output;
-}
-
-/*
-Print scenario options
-*/
-void printOptions() {
-	std::cout << "Select a scenario:\n";
-	std::cout << "A1: Concurrent Communication with CSMA Collision Avoidance\n";
-	std::cout << "A2: Concurrent Communication with CSMA Virtual Carrier Sensing\n";
-	std::cout << "B1: Hidden Terminal Communication with CSMA Collision Avoidance\n";
-	std::cout << "B2: Hidden Terminal Communication with CSMA Virtual Carrier Sensing\n";
-}
-
 int main(int argc, char *argv[]) {
-
 	/*
 	Set the time seed
 	*/
@@ -80,32 +11,23 @@ int main(int argc, char *argv[]) {
 	/*
 	Simulation Variables in Slots
 	*/
-	double tot_slots = 0.0;
-	double SIM_TIME_slots = 0.0;
-	double DIFS_slots = 0.0;
-	double SIFS_slots = 0.0;
-	double FRAME_slots = 0.0;
-	double ACK_slots = 0.0;
-	double RTS_slots = 0.0;
-	double CTS_slots = 0.0;
-	double lambda_A = 200.0;	// set of 50, 100, 200, 300 frame/sec
-	double lambda_C = 200.0;	// set of 50, 100, 200, 300 frame/sec
-    double A_SLOTS = 0.0;
-    double C_SLOTS = 0.0;
+	int tot_slots = 0;
+	int lambda_A = 200;	// set of 50, 100, 200, 300 frame/sec
+	int lambda_C = 200;	// set of 50, 100, 200, 300 frame/sec
+	int A_SLOTS = 0.0;
+	int C_SLOTS = 0.0;
 
 	/*
 	Variables for selecting scenario
 	*/
-	std::string scenario;
-	int choice;
-	bool entry = true;
+	int choice = 0;
 
 	/*
 	Variables for nodes A and C
 	*/
-	std::vector<double> a_poisson_set, c_poisson_set;	// The set of randomized values in slots
-	std::vector<double> a_arrival, c_arrival;			// List of converted arrival times (summed up poisson set)
-	double a_curr, c_curr;								// Current arrival time from a_arrival and c_arrival
+	std::vector<int> a_poisson_set, c_poisson_set;	// The set of randomized values in slots
+	std::vector<int> a_arrival, c_arrival;			// List of converted arrival times (summed up poisson set)
+	int a_curr, c_curr;								// Current arrival time from a_arrival and c_arrival
 	int a_back, c_back;									// Backoff value (randomly generated)
 	int a_success = 0, c_success = 0;					// Number of successful transmissions
 	int a_collisions = 0, c_collisions = 0, collisions = 0;	// Number of collisions
@@ -116,87 +38,29 @@ int main(int argc, char *argv[]) {
 	bool next_active = false;
 	bool a_done = false;
 	bool c_done = false;
-
-	/*
-	Converting all units into SLOT time. We can increment by doing:
-	tot_slot += DIFS_slots + (a_back or c_back) + FRAME_slots + SIFS_slots + ACK_slots; 
-	*/
-    SIM_TIME_slots = lround(SIM_TIME / (SLOT * pow(10,-6)));
-	DIFS_slots = ceil((double)DIFS / SLOT);
-	SIFS_slots = ceil((double)SIFS / SLOT);
-	FRAME_slots = lround((FRAME * 8.0) / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
-	ACK_slots = lround(ACK * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
-	RTS_slots = lround(RTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
-	CTS_slots = lround(CTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
     
     /*
 	Selection of scenario
 	*/
-	while (entry) {
-		printOptions();
-		std::cout << "Your choice: ";
-		std::cin >> scenario;
-		if (scenario.compare("A1") == 0 || scenario.compare("a1") == 0) {
-			entry = false;
-			choice = A_CA;
-		}
-		else if (scenario.compare("A2") == 0 || scenario.compare("a2") == 0) {
-			entry = false;
-			choice = A_VCS;
-		}
-		else if (scenario.compare("B1") == 0 || scenario.compare("b1") == 0) {
-			entry = false;
-			choice = B_CA;
-		}
-		else if (scenario.compare("B2") == 0 || scenario.compare("b2") == 0) {
-			entry = false;
-			choice = B_VCS;
-		}
-		else {
-			std::cout << "\nInvalid option, try again.\n\n";
-		}
-	}
+	printOptions();
+	choice = getScenario();
 
-    /*
-	Poisson output done here, the / 2 part is just to make 
-	the set smaller. Without it, it seems the largest time 
-	is roughly 2x more than what is needed within sim time
+	/*
+	Generates a random arrival time
 	*/
-	for (int i = 0; i < (SIM_TIME_slots / FRAME_slots / 2); i++) {
-		double uniform_rand_A = 0.0, uniform_rand_C = 0.0;
-		// Mod to get a value between 0-99, / to get a value between 0 to 1
-		uniform_rand_A = (rand() % 100)/100.0;	
-		uniform_rand_C = (rand() % 100)/100.0;	
-		// Calculate the Poisson value, units are sec/frame
-		uniform_rand_A = -(1 / lambda_A)*log(1 - uniform_rand_A);
-		uniform_rand_C = -(1 / lambda_C)*log(1 - uniform_rand_C);
-		// Convert to slots, sec/frame / slot duration = slot/frame, long integer round
-		uniform_rand_A = lround(uniform_rand_A / (SLOT * pow(10, -6)));
-		uniform_rand_C = lround(uniform_rand_C / (SLOT * pow(10, -6)));
-		// Add to vectors
-		a_poisson_set.push_back(uniform_rand_A);
-		c_poisson_set.push_back(uniform_rand_C);
-	}
+	a_poisson_set = generate_poisson(lambda_A);
+	c_poisson_set = generate_poisson(lambda_C);
 
 	/*
 	Convert Poisson set into an arrival set
 	*/
-	a_arrival.push_back(a_poisson_set[0]);
-	c_arrival.push_back(c_poisson_set[0]);
-	// Using just a_poisson_set.size() because both a and c should be the same size from the randomizer
-	for (int i = 1; i < a_poisson_set.size(); i++) {
-		int tempSum = 0;
-		tempSum = a_arrival[i - 1] + a_poisson_set[i];
-		a_arrival.push_back(tempSum);
-		tempSum = c_arrival[i - 1] + c_poisson_set[i];
-		c_arrival.push_back(tempSum);
-	}
-     
+	a_arrival = generate_arrival(a_poisson_set);
+	c_arrival = generate_arrival(c_poisson_set);
 
     double size;
 	size = a_arrival.size() + c_arrival.size();
-	a_back = backoffgen(0, CW_0);
-	c_back = backoffgen(0, CW_0);
+	a_back = generate_backoff(0, CW_0);
+	c_back = generate_backoff(0, CW_0);
     a_curr = a_arrival.at(0);
 	c_curr = c_arrival.at(0);
 	int j = 0;
@@ -225,8 +89,8 @@ int main(int argc, char *argv[]) {
 					if ((c_curr + DIFS_slots + c_back) == (tot_slots + DIFS_slots + a_back)) {
 						tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
 						collisions++;
-						a_back = backoffgen(collisions, CW_0);
-						c_back = backoffgen(collisions, CW_0);
+						a_back = generate_backoff(collisions, CW_0);
+						c_back = generate_backoff(collisions, CW_0);
 						continue;
 					}
 					else {    // no collision, but check earlier packet
@@ -261,8 +125,8 @@ int main(int argc, char *argv[]) {
 					if ((a_curr + DIFS_slots + a_back) == (tot_slots + DIFS_slots + c_back)) {
 						tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;    // unsure if exactly right, but should be where ACK is supposed to send
 						collisions++;
-						a_back = backoffgen(collisions, CW_0);
-						c_back = backoffgen(collisions, CW_0);
+						a_back = generate_backoff(collisions, CW_0);
+						c_back = generate_backoff(collisions, CW_0);
 						continue;
 					}
 					else {    // no collision, but check earlier packet
@@ -292,8 +156,8 @@ int main(int argc, char *argv[]) {
 				if ((a_curr + DIFS_slots + a_back) == (c_curr + DIFS_slots + c_back)) {   // when backoffs end at same time, collision will occur
 					tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;    // use either backoff to move current slot to ACK slot
 					collisions++;
-					a_back = backoffgen(collisions, CW_0);
-					c_back = backoffgen(collisions, CW_0);
+					a_back = generate_backoff(collisions, CW_0);
+					c_back = generate_backoff(collisions, CW_0);
 					continue;
 				}
 				else {    // determine which set has earlier backoff time
@@ -314,93 +178,8 @@ int main(int argc, char *argv[]) {
 
 		break;
 	case A_VCS:	// Scenario A, CSMA 2
-		while (tot_slots < SIM_TIME_slots) {
-			// Every new slot transmission will have at least DIFS, calling it running because current is being used.
-			int running_slot = DIFS_slots;	
-			int RTS_NAV = RTS_slots + SIFS_slots + CTS_slots + SIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
-			int temp_collision = 0;
-			/*
-			If total slot is currently idle, and no queue, jump ahead.
-			Ex1: tot_slots = 0, a_curr = 130 and c_curr = 180, this will jump to 130.
-			Ex2: tot_slots = 512, a_curr = 921 and c_curr = 802, this will jump to 802.
-			*/
-			if (tot_slots < a_curr && tot_slots < c_curr) {
-				(a_curr <= c_curr) ? (tot_slots = a_curr) : (tot_slots = c_curr);
-			}
-			
-			if (a_curr == c_curr) {
-				// If backoffs are the same, increment collision. Generate new backoffs until no longer same
-				while (a_back == c_back) {
-					running_slot += a_back;
-					a_back = backoffgen(++temp_collision, CW_0);
-					c_back = backoffgen(temp_collision, CW_0);
-				}
-				
-				// Decrement backoff until one is 0, adding time to tempSlot.
-				(a_back < c_back) ? (a_index++) : (c_index++);
-				while (a_back != 0 && c_back != 0) {
-					a_back--;
-					c_back--;
-					running_slot++;
-				}
-				// Check which one hit 0 first, update and generate new backoff
-				if (a_back == 0) {
-					running_slot += RTS_NAV;
-					a_back = backoffgen(0, CW_0);
-				}
-				else {
-					running_slot += RTS_NAV;
-					c_back = backoffgen(0, CW_0);
-				}
-			}
-			else if (a_curr < c_curr) {
-				// Move a_index to next arrival since we're processing this one
-				a_index++;
-
-				// If backoffs are the same, increment collision
-				if (  (a_curr > tot_slots ? a_curr : tot_slots) + a_back + DIFS_slots >= c_curr + DIFS_slots ) {
-					running_slot += a_back;
-					a_back = backoffgen(++temp_collision, CW_0);
-					c_back = backoffgen(temp_collision, CW_0);
-				}
-				
-				// Decrement backoff until one is 0, adding time to tempSlot.
-				while (a_back != 0) {
-					a_back--;
-					running_slot++;
-				}
-				// Check which one hit 0 first, update and generate new backoff
-				running_slot += RTS_NAV;
-				a_back = backoffgen(0, CW_0);
-			}
-			else {
-				// Move a_index to next arrival since we're processing this one
-				c_index++;
-
-				// If backoffs are the same, increment collision
-				if ((c_curr > tot_slots ? c_curr : tot_slots) + c_back + DIFS_slots >= a_curr + DIFS_slots) {
-					running_slot += c_back;
-					a_back = backoffgen(++temp_collision, CW_0);
-					c_back = backoffgen(temp_collision, CW_0);
-				}
-				
-				// Decrement backoff until one is 0, adding time to tempSlot.
-				while (c_back != 0) {
-					c_back--;
-					running_slot++;
-				}
-				// Check which one hit 0 first, update and generate new backoff
-				running_slot += RTS_NAV;
-				c_back = backoffgen(0, CW_0);
-			}
-
-			// Update tot_slot, a_curr, c_curr
-			tot_slots += running_slot;	// Add the running slot to the total slow
-			collisions += temp_collision;
-			a_curr = a_arrival.at(a_index);
-			c_curr = c_arrival.at(c_index);
-			total_iterations++;
-		}
+		runScenarioA2(a_arrival, c_arrival);
+		system("pause");
 		break;
 	case B_CA:	// Scenario B, CSMA 1
     
@@ -409,13 +188,10 @@ int main(int argc, char *argv[]) {
     
 		break;
 	}
-
-	std::cout << "Total iterations to complete simulation time: " << total_iterations << std::endl;
-	std::cout << "Total number of collisions: " << collisions << std::endl;
 }
 
 /*
-SMA/CA with virtual carrier sensing enabled:
+CSMA/CA with virtual carrier sensing enabled:
 RTS and CTS frames are exchanged before the transmission  of  a  frame.   
 If  RTS  transmissions  collide,  stations  invoke  the  exponential  backoff
 mechanism outlined in 1(c).  Otherwise,  stations that overhear an RTS/CTS message 
