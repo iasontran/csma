@@ -48,13 +48,13 @@ int backoffgen(int collide, double CW) {
 	int bound = 0;
 	double output;
 	
-    if ( collide > CW_MAX ) {
-        bound = pow(2, CW_MAX);
+	if ( pow(2, collide) > CW_MAX) {
+        bound = pow(2, CW_MAX)*CW;
     } else {
-        bound = pow(2, collide);
+        bound = pow(2, collide)*CW;
     }
     
-    output = rand() % bound - 1;
+    output = rand() % bound;
 
     return output;
 }
@@ -202,7 +202,8 @@ int main(int argc, char *argv[]) {
 	int j = 0;
 	int k = 0;
 
-	int testVarOnlyWillRemoveWhenDone = 0;
+	// Increment every loop to see how many cycles it needed to get to SIM_TIME_slots
+	int total_iterations = 0;	
 	switch (choice) {
 	case A_CA:	// Scenario A, CSMA
 		while (tot_slots < SIM_TIME_slots) {   // while total time is less than simulated time
@@ -313,13 +314,11 @@ int main(int argc, char *argv[]) {
 
 		break;
 	case A_VCS:	// Scenario A, CSMA 2
-		SIM_TIME_slots = 10000;
-		std::cout << "Testing with sim_time_slot of: " << SIM_TIME_slots << std::endl;
 		while (tot_slots < SIM_TIME_slots) {
 			// Every new slot transmission will have at least DIFS, calling it running because current is being used.
 			int running_slot = DIFS_slots;	
 			int RTS_NAV = RTS_slots + SIFS_slots + CTS_slots + SIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
-
+			int temp_collision = 0;
 			/*
 			If total slot is currently idle, and no queue, jump ahead.
 			Ex1: tot_slots = 0, a_curr = 130 and c_curr = 180, this will jump to 130.
@@ -328,18 +327,15 @@ int main(int argc, char *argv[]) {
 			if (tot_slots < a_curr && tot_slots < c_curr) {
 				(a_curr <= c_curr) ? (tot_slots = a_curr) : (tot_slots = c_curr);
 			}
-
 			
 			if (a_curr == c_curr) {
-				// If backoffs are the same, increment collision
-				if (a_back == c_back) {
-					collisions++;
-				}
-				// Generate new backoffs until no longer same
+				// If backoffs are the same, increment collision. Generate new backoffs until no longer same
 				while (a_back == c_back) {
-					a_back = backoffgen(collisions, CW_0);
-					c_back = backoffgen(collisions, CW_0);
+					running_slot += a_back;
+					a_back = backoffgen(++temp_collision, CW_0);
+					c_back = backoffgen(temp_collision, CW_0);
 				}
+				
 				// Decrement backoff until one is 0, adding time to tempSlot.
 				(a_back < c_back) ? (a_index++) : (c_index++);
 				while (a_back != 0 && c_back != 0) {
@@ -350,11 +346,11 @@ int main(int argc, char *argv[]) {
 				// Check which one hit 0 first, update and generate new backoff
 				if (a_back == 0) {
 					running_slot += RTS_NAV;
-					a_back = backoffgen(collisions, CW_0);
+					a_back = backoffgen(0, CW_0);
 				}
 				else {
 					running_slot += RTS_NAV;
-					c_back = backoffgen(collisions, CW_0);
+					c_back = backoffgen(0, CW_0);
 				}
 			}
 			else if (a_curr < c_curr) {
@@ -363,11 +359,11 @@ int main(int argc, char *argv[]) {
 
 				// If backoffs are the same, increment collision
 				if (  (a_curr > tot_slots ? a_curr : tot_slots) + a_back + DIFS_slots >= c_curr + DIFS_slots ) {
-					collisions++; 
-					a_back = backoffgen(collisions, CW_0);
-					c_back = backoffgen(collisions, CW_0);
+					running_slot += a_back;
+					a_back = backoffgen(++temp_collision, CW_0);
+					c_back = backoffgen(temp_collision, CW_0);
 				}
-
+				
 				// Decrement backoff until one is 0, adding time to tempSlot.
 				while (a_back != 0) {
 					a_back--;
@@ -375,7 +371,7 @@ int main(int argc, char *argv[]) {
 				}
 				// Check which one hit 0 first, update and generate new backoff
 				running_slot += RTS_NAV;
-				a_back = backoffgen(collisions, CW_0);
+				a_back = backoffgen(0, CW_0);
 			}
 			else {
 				// Move a_index to next arrival since we're processing this one
@@ -383,11 +379,11 @@ int main(int argc, char *argv[]) {
 
 				// If backoffs are the same, increment collision
 				if ((c_curr > tot_slots ? c_curr : tot_slots) + c_back + DIFS_slots >= a_curr + DIFS_slots) {
-					collisions++;
-					a_back = backoffgen(collisions, CW_0);
-					c_back = backoffgen(collisions, CW_0);
+					running_slot += c_back;
+					a_back = backoffgen(++temp_collision, CW_0);
+					c_back = backoffgen(temp_collision, CW_0);
 				}
-
+				
 				// Decrement backoff until one is 0, adding time to tempSlot.
 				while (c_back != 0) {
 					c_back--;
@@ -395,14 +391,15 @@ int main(int argc, char *argv[]) {
 				}
 				// Check which one hit 0 first, update and generate new backoff
 				running_slot += RTS_NAV;
-				c_back = backoffgen(collisions, CW_0);
+				c_back = backoffgen(0, CW_0);
 			}
 
 			// Update tot_slot, a_curr, c_curr
 			tot_slots += running_slot;	// Add the running slot to the total slow
+			collisions += temp_collision;
 			a_curr = a_arrival.at(a_index);
 			c_curr = c_arrival.at(c_index);
-			std::cout << testVarOnlyWillRemoveWhenDone++ << ") Current total slots:" << tot_slots << "\na_back val: " << a_back << "\tc_back val: " << c_back << "\tcurrent collision: " << collisions << std::endl;
+			total_iterations++;
 		}
 		break;
 	case B_CA:	// Scenario B, CSMA 1
@@ -412,6 +409,9 @@ int main(int argc, char *argv[]) {
     
 		break;
 	}
+
+	std::cout << "Total iterations to complete simulation time: " << total_iterations << std::endl;
+	std::cout << "Total number of collisions: " << collisions << std::endl;
 }
 
 /*
