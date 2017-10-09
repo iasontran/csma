@@ -45,16 +45,16 @@ public:
 Function to generate the backoff value
 */
 int backoffgen(int collide, double CW) {
-	int bound = (pow(2, collide) * CW) - 1;
-	int output;
-	bool done = false;
-
-	while (!done) {	// Keep generating new backoff but must be less than CW_MAX
-		output = abs(rand() % bound);
-		if (output < CW_MAX) {
-			done = true;
-		}
-	}
+	int bound = 0;
+	double output;
+	
+    if ( collide > CW_MAX ) {
+        bound = pow(2, CW_MAX);
+    } else {
+        bound = pow(2, collide);
+    }
+    
+    output = rand() % bound - 1;
 
     return output;
 }
