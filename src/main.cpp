@@ -182,10 +182,12 @@ int main(int argc, char *argv[]) {
 		system("pause");
 		break;
 	case B_CA:	// Scenario B, CSMA 1
-    
+		runScenarioB1(a_arrival, c_arrival);
+		system("pause");
 		break;
 	case B_VCS:	// Scenario B, CSMA 2
-    
+		runScenarioB2(a_arrival, c_arrival);
+		system("pause");
 		break;
 	}
 }
