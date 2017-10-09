@@ -109,6 +109,7 @@ int main(int argc, char *argv[]) {
 	int a_back, c_back;									// Backoff value (randomly generated)
 	int a_success = 0, c_success = 0;					// Number of successful transmissions
 	int a_collisions = 0, c_collisions = 0, collisions = 0;	// Number of collisions
+	int a_index = 0, c_index = 0;		// Tracking index of a_arrival and c_arrival
 
 	// Variables for the other processes??????
 	bool active_node = false;
@@ -185,16 +186,10 @@ int main(int argc, char *argv[]) {
 	// Using just a_poisson_set.size() because both a and c should be the same size from the randomizer
 	for (int i = 1; i < a_poisson_set.size(); i++) {
 		int tempSum = 0;
-		// Only push to the a_arrival if the next arrival is still within simulation limit
-		if (a_arrival[i - 1] + a_poisson_set[i] < SIM_TIME_slots) {		
-			tempSum = a_arrival[i - 1] + a_poisson_set[i];
-			a_arrival.push_back(tempSum);
-		}
-		// Only push to the c_arrival if the next arrival is still within simulation limit
-		if (c_arrival[i - 1] + c_poisson_set[i] < SIM_TIME_slots) {		
-			tempSum = c_arrival[i - 1] + c_poisson_set[i];
-			c_arrival.push_back(tempSum);
-		}
+		tempSum = a_arrival[i - 1] + a_poisson_set[i];
+		a_arrival.push_back(tempSum);
+		tempSum = c_arrival[i - 1] + c_poisson_set[i];
+		c_arrival.push_back(tempSum);
 	}
      
 
@@ -207,6 +202,7 @@ int main(int argc, char *argv[]) {
 	int j = 0;
 	int k = 0;
 
+	int testVarOnlyWillRemoveWhenDone = 0;
 	switch (choice) {
 	case A_CA:	// Scenario A, CSMA
 		while (tot_slots < SIM_TIME_slots) {   // while total time is less than simulated time
@@ -317,8 +313,9 @@ int main(int argc, char *argv[]) {
 
 		break;
 	case A_VCS:	// Scenario A, CSMA 2
+		SIM_TIME_slots = 10000;
+		std::cout << "Testing with sim_time_slot of: " << SIM_TIME_slots << std::endl;
 		while (tot_slots < SIM_TIME_slots) {
-			int a_index = 0, c_index = 0;
 			// Every new slot transmission will have at least DIFS, calling it running because current is being used.
 			int running_slot = DIFS_slots;	
 			int RTS_NAV = RTS_slots + SIFS_slots + CTS_slots + SIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
@@ -366,10 +363,7 @@ int main(int argc, char *argv[]) {
 
 				// If backoffs are the same, increment collision
 				if (  (a_curr > tot_slots ? a_curr : tot_slots) + a_back + DIFS_slots >= c_curr + DIFS_slots ) {
-					collisions++;
-				}
-
-				while ( (a_curr > tot_slots ? a_curr : tot_slots) + a_back + DIFS_slots >= c_curr + DIFS_slots ) {
+					collisions++; 
 					a_back = backoffgen(collisions, CW_0);
 					c_back = backoffgen(collisions, CW_0);
 				}
@@ -377,7 +371,6 @@ int main(int argc, char *argv[]) {
 				// Decrement backoff until one is 0, adding time to tempSlot.
 				while (a_back != 0) {
 					a_back--;
-					c_back--;
 					running_slot++;
 				}
 				// Check which one hit 0 first, update and generate new backoff
@@ -385,14 +378,31 @@ int main(int argc, char *argv[]) {
 				a_back = backoffgen(collisions, CW_0);
 			}
 			else {
+				// Move a_index to next arrival since we're processing this one
+				c_index++;
 
+				// If backoffs are the same, increment collision
+				if ((c_curr > tot_slots ? c_curr : tot_slots) + c_back + DIFS_slots >= a_curr + DIFS_slots) {
+					collisions++;
+					a_back = backoffgen(collisions, CW_0);
+					c_back = backoffgen(collisions, CW_0);
+				}
+
+				// Decrement backoff until one is 0, adding time to tempSlot.
+				while (c_back != 0) {
+					c_back--;
+					running_slot++;
+				}
+				// Check which one hit 0 first, update and generate new backoff
+				running_slot += RTS_NAV;
+				c_back = backoffgen(collisions, CW_0);
 			}
 
 			// Update tot_slot, a_curr, c_curr
 			tot_slots += running_slot;	// Add the running slot to the total slow
 			a_curr = a_arrival.at(a_index);
 			c_curr = c_arrival.at(c_index);
-			
+			std::cout << testVarOnlyWillRemoveWhenDone++ << ") Current total slots:" << tot_slots << "\na_back val: " << a_back << "\tc_back val: " << c_back << "\tcurrent collision: " << collisions << std::endl;
 		}
 		break;
 	case B_CA:	// Scenario B, CSMA 1
