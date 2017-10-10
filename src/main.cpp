@@ -12,8 +12,8 @@ int main(int argc, char *argv[]) {
 	Simulation Variables in Slots
 	*/
 	int tot_slots = 0;
-	int lambda_A = 200;	// set of 50, 100, 200, 300 frame/sec
-	int lambda_C = 200;	// set of 50, 100, 200, 300 frame/sec
+	int lambda_A = 300;	// set of 50, 100, 200, 300 frame/sec
+	int lambda_C = 300;	// set of 50, 100, 200, 300 frame/sec
 	int A_SLOTS = 0.0;
 	int C_SLOTS = 0.0;
 
