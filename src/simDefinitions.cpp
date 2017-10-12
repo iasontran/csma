@@ -1,8 +1,6 @@
 #include "simDefinitions.h"
 #include "scenario.h"
 
-
-
 /*
 Print scenario options
 */
@@ -69,7 +67,7 @@ std::vector<int> generate_poisson(int lambda) {
 	the set smaller. Without it, it seems the largest time
 	is roughly 2x more than what is needed within sim time
 	*/
-	for (int i = 0; i < (SIM_TIME_slots / FRAME_slots / 2); i++) {
+	for (int i = 0; i < (SIM_TIME_slots / FRAME_slots); i++) {
 		double uniform_rand = 0.0;
 		// Mod to get a value between 0-99, / to get a value between 0 to 1
 		uniform_rand = (rand() % 100) / 100.0;

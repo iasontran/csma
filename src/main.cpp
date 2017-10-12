@@ -2,6 +2,16 @@
 #include "scenario.h"
 #include <ctime>
 
+int SIM_TIME_slots = (SIM_TIME / (SLOT * pow(10, -6)));
+int DIFS_slots = ceil((double)DIFS / SLOT);
+int SIFS_slots = ceil((double)SIFS / SLOT);
+int FRAME_slots = ((FRAME * 8.0) / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
+int ACK_slots = (ACK * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
+int RTS_slots = (RTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
+int CTS_slots = (CTS * 8 / (TRANSMISSION_RATE * pow(10, 6)) / (SLOT * pow(10, -6)));
+int CW_MAX = 1024;
+int CW_0 = 4;
+
 int main(int argc, char *argv[]) {
 	/*
 	Set the time seed
@@ -288,21 +298,14 @@ int main(int argc, char *argv[]) {
 
 		break;
 	case A_VCS:	// Scenario A, CSMA 2
-		lambda_A = 100;
-		lambda_C = 200;
+		lambda_A = 50;
+		lambda_C = 50;
 		for (int itr = 0; itr < 20; itr++) {
-			runScenarioA2(a_arrival, c_arrival);
-			/*
-			Generates a random arrival time
-			*/
 			a_poisson_set = generate_poisson(lambda_A);
 			c_poisson_set = generate_poisson(lambda_C);
-
-			/*
-			Convert Poisson set into an arrival set
-			*/
 			a_arrival = generate_arrival(a_poisson_set);
 			c_arrival = generate_arrival(c_poisson_set);
+			runScenarioA2(a_arrival, c_arrival);
 		}
 		break;
 	case B_CA:	// Scenario B, CSMA 1
