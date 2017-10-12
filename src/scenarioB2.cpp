@@ -46,7 +46,7 @@ void runScenarioB2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 		B|______Ss
 		2|dd__rr+++
 		*/
-		else if ( abs( (a_curr + a_back) - (c_curr + c_back) ) < RTS_slots ) {
+		else if ( abs( (a_curr + a_back) - (c_curr + c_back) ) < RTS_slots + SIFS_slots + CTS_slots ) {
 			if ( (a_curr + a_back) > (c_curr + c_back) ) {
 				total_slots = (total_slots < a_curr) ? a_curr : total_slots;
 			}
@@ -64,11 +64,11 @@ void runScenarioB2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 
 		Diff == 2				Diff > 2
 		Frozen w/ backoff = 0	Frozen w/ backoff leftover
-		1|dd____\rr++++			1|dd____\___rr
-		B|______Ss				B|______SsccSs
-		2|dd__rr+++				2|dd__rr++++
+		1|dd____\rr++++			1|dd________\___rr
+		B|______Ss				B|__________SsccSs
+		2|dd__rr+++				2|dd__rrSscc
 		*/
-		else if ( abs( (a_curr + a_back) - (c_curr + c_back) ) >= RTS_slots) {
+		else if ( abs( (a_curr + a_back) - (c_curr + c_back) ) >= RTS_slots + SIFS_slots + CTS_slots ) {
 			if ( (a_curr + a_back) > (c_curr + c_back) ) {
 				temp_collisions = 0;
 				total_slots = (total_slots < c_curr) ? c_curr : total_slots;
