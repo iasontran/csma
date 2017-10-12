@@ -39,7 +39,7 @@ void runScenarioA2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 				running_slot += RTS_NAV + a_back;
 				a_back = generate_backoff(temp_collision, CW_0);
 				c_back = generate_backoff(temp_collision, CW_0);
-				std::cout << "!!!!COLLISION!!!!" << std::endl;
+				//std::cout << "!!!!COLLISION!!!!" << std::endl;
 			}
 			else {
 				int low_back, high_back;
@@ -56,13 +56,13 @@ void runScenarioA2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 				// First station starts transmitting, but second station starts transmitting before first finishes.
 				// Case: c_back < a_back && a_back < c_back + RTS_NAV
 				// Case: a_back < c_back && c_back < a_back + RTS_NAV
-				if ( (low_back < high_back) && (high_back < (low_back + RTS_NAV)) ) {
+				if ( (high_back < (low_back + RTS_NAV)) ) {
 					temp_collision++;
 					collisions++;
 					running_slot += high_back + RTS_NAV;
 					a_back = generate_backoff(temp_collision, CW_0);
 					c_back = generate_backoff(temp_collision, CW_0);
-					std::cout << "!!!!COLLISION!!!!" << std::endl;
+					//std::cout << "!!!!COLLISION!!!!" << std::endl;
 				}
 				else {
 					// Check which one hit 0 first, update and generate new backoff
@@ -85,13 +85,13 @@ void runScenarioA2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 		}
 		else if (a_arrival.at(a_index) < c_arrival.at(c_index)) {
 			// Case: a starts transmitting, c starts transmitting before a finishes
-			if ( c_curr + c_back < a_curr + a_back + RTS_NAV) {
+			if ( c_curr + DIFS_slots + c_back < a_curr + a_back + RTS_NAV) {
 				temp_collision++;
 				collisions++;
 				running_slot += a_back + RTS_NAV;
 				a_back = generate_backoff(temp_collision, CW_0);
 				c_back = generate_backoff(temp_collision, CW_0);
-				std::cout << "!!!!COLLISION!!!!" << std::endl;
+				////std::cout << "!!!!COLLISION!!!!" << std::endl;
 			}
 			// Case: a starts transmitting and finishes before c starts, so c waits out the RTS_NAV+CTS_NAV
 			else {
@@ -104,13 +104,13 @@ void runScenarioA2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 		}
 		else {
 			// Case: c starts transmitting, a starts transmitting before c finishes
-			if (a_curr + a_back < c_curr + c_back + RTS_NAV) {
+			if (a_curr + DIFS_slots + a_back <= c_curr + c_back + RTS_NAV) {
 				temp_collision++;
 				collisions++;
 				running_slot += c_back + RTS_NAV;
 				a_back = generate_backoff(temp_collision, CW_0);
 				c_back = generate_backoff(temp_collision, CW_0);
-				std::cout << "!!!!COLLISION!!!!" << std::endl;
+				//std::cout << "!!!!COLLISION!!!!" << std::endl;
 			}
 			// Case: c starts transmitting and finishes before a starts, so a waits out the RTS_NAV+CTS_NAV
 			else {
@@ -125,8 +125,8 @@ void runScenarioA2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 		// Update tot_slot, a_curr, c_curr
 		tot_slots += running_slot;	// Add the running slot to the total slow
 		total_iterations++;
-		std::cout << total_iterations << ") Current time: " << tot_slots << std::endl;
-		std::cout << "Current collisions: " << collisions << std::endl << std::endl;
+		//std::cout << total_iterations << ") Current time: " << tot_slots << std::endl;
+		//std::cout << "Current collisions: " << collisions << std::endl << std::endl;
 	}
 
 	std::cout << "\n\nTotal iterations to complete simulation time: " << total_iterations << std::endl;

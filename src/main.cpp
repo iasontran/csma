@@ -12,8 +12,8 @@ int main(int argc, char *argv[]) {
 	Simulation Variables in Slots
 	*/
 	int tot_slots = 0;
-	int lambda_A = 300;	// set of 50, 100, 200, 300 frame/sec
-	int lambda_C = 300;	// set of 50, 100, 200, 300 frame/sec
+	int lambda_A = 200;	// set of 50, 100, 200, 300 frame/sec
+	int lambda_C = 200;	// set of 50, 100, 200, 300 frame/sec
 	int A_SLOTS = 0.0;
 	int C_SLOTS = 0.0;
 
@@ -178,8 +178,22 @@ int main(int argc, char *argv[]) {
 
 		break;
 	case A_VCS:	// Scenario A, CSMA 2
-		runScenarioA2(a_arrival, c_arrival);
-		system("pause");
+		lambda_A = 100;
+		lambda_C = 200;
+		for (int itr = 0; itr < 20; itr++) {
+			runScenarioA2(a_arrival, c_arrival);
+			/*
+			Generates a random arrival time
+			*/
+			a_poisson_set = generate_poisson(lambda_A);
+			c_poisson_set = generate_poisson(lambda_C);
+
+			/*
+			Convert Poisson set into an arrival set
+			*/
+			a_arrival = generate_arrival(a_poisson_set);
+			c_arrival = generate_arrival(c_poisson_set);
+		}
 		break;
 	case B_CA:	// Scenario B, CSMA 1
 		runScenarioB1(a_arrival, c_arrival);
