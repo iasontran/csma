@@ -298,8 +298,8 @@ int main(int argc, char *argv[]) {
 
 		break;
 	case A_VCS:	// Scenario A, CSMA 2
-		lambda_A = 50;
-		lambda_C = 50;
+		lambda_A = 100;
+		lambda_C = 200;
 		for (int itr = 0; itr < 20; itr++) {
 			a_poisson_set = generate_poisson(lambda_A);
 			c_poisson_set = generate_poisson(lambda_C);
@@ -313,8 +313,15 @@ int main(int argc, char *argv[]) {
 		system("pause");
 		break;
 	case B_VCS:	// Scenario B, CSMA 2
-		runScenarioB2(a_arrival, c_arrival);
-		system("pause");
+		lambda_A = 50;
+		lambda_C = 50;
+		for (int itr = 0; itr < 20; itr++) {
+			a_poisson_set = generate_poisson(lambda_A);
+			c_poisson_set = generate_poisson(lambda_C);
+			a_arrival = generate_arrival(a_poisson_set);
+			c_arrival = generate_arrival(c_poisson_set);
+			runScenarioB2(a_arrival, c_arrival);
+		}
 		break;
 	}
 }
