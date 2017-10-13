@@ -43,8 +43,8 @@ int main(int argc, char *argv[]) {
      Selection of scenario
      */
     
-    //printOptions();
-    //choice = getScenario();
+    printOptions();
+    choice = getScenario();
     
     /*
      Generates a random arrival time
@@ -60,7 +60,6 @@ int main(int argc, char *argv[]) {
     
     // Increment every loop to see how many cycles it needed to get to SIM_TIME_slots
     int total_iterations = 0;
-	choice = A_VCS;
     switch (choice) {
         case A_CA:	{// Scenario A, CSMA
             lambda_A = 50;
