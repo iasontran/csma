@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 			int lambdaTemp[] = { 50, 100, 200, 300 };
 			for (int i = 0; i < 4; i++) {
 				// Testing purposes
-				lambda_A = 2 * lambdaTemp[i];
+				lambda_A = 1 * lambdaTemp[i];
 				lambda_C = 1 * lambdaTemp[i];
 				//Adding to file, Testing purposes
 				std::ofstream tempFile;
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
 			int lambdaTemp[] = { 50, 100, 200, 300 };
 			for (int i = 0; i < 4; i++) {
 				// Testing purposes
-				lambda_A = 2 * lambdaTemp[i];
+				lambda_A = 1 * lambdaTemp[i];
 				lambda_C = 1 * lambdaTemp[i];
 				//Adding to file, Testing purposes
 				std::ofstream tempFile;
