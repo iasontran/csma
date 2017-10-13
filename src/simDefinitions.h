@@ -10,6 +10,7 @@ All the required includes
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 
 /*
 Simulation Parameters

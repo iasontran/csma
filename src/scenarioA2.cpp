@@ -14,7 +14,8 @@ void runScenarioA2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 	// He has RTS NAV begin right after RTS finishes transmitting.
 	int RTS_NAV = 0;
 	RTS_NAV = SIFS_slots + CTS_slots + SIFS_slots + FRAME_slots + SIFS_slots + ACK_slots; // the 0 is the backoff, just a place holder
-
+	std::ofstream myFile;
+	myFile.open("a2out.txt", std::ios::app);
 	while (total_slots < SIM_TIME_slots) {
 		/*
 		If total slot is currently idle, and no queue, jump ahead.
@@ -204,9 +205,11 @@ void runScenarioA2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 		//std::cout << total_iterations << ") Current time: " << total_slots << std::endl;
 		//std::cout << "Current total_collisions: " << total_collisions << std::endl << std::endl;
 	}
-
+	myFile << total_iterations << "\t" << total_collisions << "\t" << a_success << "\t" << c_success << std::endl;
+	myFile.close();
 	std::cout << "\n\nTotal iterations to complete simulation time: " << total_iterations << std::endl;
 	std::cout << "Total number of total_collisions: " << total_collisions << "\tSuccessful A nodes: " << a_success << "\tSuccessful C nodes: " << c_success << std::endl;
+	
 }
 
 /*

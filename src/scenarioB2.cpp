@@ -13,7 +13,8 @@ void runScenarioB2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 	// Modifying variables based on lecture slides 3.3 Wireless MA Slide 12
 	// He has RTS NAV begin right after RTS finishes transmitting.
 	int RTS_NAV = SIFS_slots + CTS_slots + SIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
-	
+	std::ofstream myFile;
+	myFile.open("b2out.txt", std::ios::app);
 	// Sets the initial arrivals
 	a_curr = a_arrival.at(a_index);
 	c_curr = c_arrival.at(c_index);
@@ -96,7 +97,8 @@ void runScenarioB2(std::vector<int> a_arrival, std::vector<int> c_arrival) {
 		a_curr = (a_curr > total_slots) ? a_curr : total_slots;
 		c_curr = (c_curr > total_slots) ? c_curr : total_slots;
 	}
-
+	myFile << total_iterations << "\t" << total_collisions << "\t" << a_success << "\t" << c_success << std::endl;
+	myFile.close();
 	std::cout << "\n\nTotal iterations to complete simulation time: " << total_iterations << std::endl;
 	std::cout << "Total number of total_collisions: " << total_collisions << "\tSuccessful A nodes: " << a_success << "\tSuccessful C nodes: " << c_success << std::endl;
 }
