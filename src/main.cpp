@@ -42,35 +42,39 @@ int main(int argc, char *argv[]) {
     /*
      Selection of scenario
      */
-    
     printOptions();
     choice = getScenario();
-    
+
     /*
-     Generates a random arrival time
-     */
-    a_poisson_set = generate_poisson(lambda_A);
-    c_poisson_set = generate_poisson(lambda_C);
-    
-    /*
-     Convert Poisson set into an arrival set
-     */
-    a_arrival = generate_arrival(a_poisson_set);
-    c_arrival = generate_arrival(c_poisson_set);
-    
-    // Increment every loop to see how many cycles it needed to get to SIM_TIME_slots
-    int total_iterations = 0;
-    switch (choice) {
+	Start Simulation
+    */
+	switch (choice) {
         case A_CA:	{// Scenario A, CSMA
-            lambda_A = 50;
-            lambda_C = 50;
-            for (int itr = 0; itr < 20; itr++) {
-                a_poisson_set = generate_poisson(lambda_A);
-                c_poisson_set = generate_poisson(lambda_C);
-                a_arrival = generate_arrival(a_poisson_set);
-                c_arrival = generate_arrival(c_poisson_set);
-                runScenarioA1(a_arrival, c_arrival);
-            }
+			int lambdaTemp[] = { 50, 100, 200, 300 };
+			for (int i = 0; i < 4; i++) {
+				// Testing purposes
+				lambda_A = 1 * lambdaTemp[i];
+				lambda_C = 1 * lambdaTemp[i];
+				//Adding to file, Testing purposes
+				std::ofstream tempFile;
+				tempFile.open("a1out.txt", std::ios::app);
+				tempFile << "\nLambda: " << lambdaTemp[i] << "\tLambda A: " << lambda_A << "\tLambda C: " << lambda_C << std::endl;
+				tempFile.close();
+				// Close file, start testing. Loop of 20 just to get an average read.
+				for (int itr = 0; itr < 20; itr++) {
+					/*
+					Generates a random arrival time
+					*/
+					a_poisson_set = generate_poisson(lambda_A);
+					c_poisson_set = generate_poisson(lambda_C);
+					/*
+					Convert Poisson set into an arrival set
+					*/
+					a_arrival = generate_arrival(a_poisson_set);
+					c_arrival = generate_arrival(c_poisson_set);
+					runScenarioA1(a_arrival, c_arrival);
+				}
+			}
             break;
         }
         case A_VCS:	{// Scenario A, CSMA 2
@@ -96,7 +100,31 @@ int main(int argc, char *argv[]) {
             break;
         }
         case B_CA:	{// Scenario B, CSMA 1
-            runScenarioB1(a_arrival, c_arrival);
+			int lambdaTemp[] = { 50, 100, 200, 300 };
+			for (int i = 0; i < 4; i++) {
+				// Testing purposes
+				lambda_A = 1 * lambdaTemp[i];
+				lambda_C = 1 * lambdaTemp[i];
+				//Adding to file, Testing purposes
+				std::ofstream tempFile;
+				tempFile.open("b1out.txt", std::ios::app);
+				tempFile << "\nLambda: " << lambdaTemp[i] << "\tLambda A: " << lambda_A << "\tLambda C: " << lambda_C << std::endl;
+				tempFile.close();
+				// Close file, start testing. Loop of 20 just to get an average read.
+				for (int itr = 0; itr < 20; itr++) {
+					/*
+					Generates a random arrival time
+					*/
+					a_poisson_set = generate_poisson(lambda_A);
+					c_poisson_set = generate_poisson(lambda_C);
+					/*
+					Convert Poisson set into an arrival set
+					*/
+					a_arrival = generate_arrival(a_poisson_set);
+					c_arrival = generate_arrival(c_poisson_set);
+					runScenarioB1(a_arrival, c_arrival);
+				}
+			}
             break;
         }
         case B_VCS:	{// Scenario B, CSMA 2

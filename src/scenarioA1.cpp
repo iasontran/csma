@@ -6,7 +6,8 @@ void runScenarioA1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
     int c_back = generate_backoff(0, CW_0);
     int a_curr = 0, c_curr = 0;
     int temp_collision = 0, tot_slots = 0, j = 0, k = 0, a_success = 0, c_success = 0, collisions = 0, total_iterations = 0;
-    
+	std::ofstream myFile;
+	myFile.open("a1out.txt", std::ios::app);
     while ( tot_slots < SIM_TIME_slots ) {
         
         a_curr = a_arrival.at(j);
@@ -150,9 +151,11 @@ void runScenarioA1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
             }
         }
         total_iterations++;
-        std::cout << total_iterations << ") Current time: " << tot_slots << std::endl;
-        std::cout << "Current collisions: " << collisions << std::endl << std::endl;
+        //std::cout << total_iterations << ") Current time: " << tot_slots << std::endl;
+        //std::cout << "Current collisions: " << collisions << std::endl << std::endl;
     }
-    std::cout << "\n\nTotal iterations to complete simulation time: " << total_iterations << std::endl;
+	myFile << total_iterations << "\t" << collisions << "\t" << a_success << "\t" << c_success << std::endl;
+	myFile.close();
+	std::cout << "\n\nTotal iterations to complete simulation time: " << total_iterations << std::endl;
     std::cout << "Total number of collisions: " << collisions << "\tSuccessful A nodes: " << a_success << "\tSuccessful C nodes: " << c_success << std::endl;
 }
