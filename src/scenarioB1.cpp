@@ -6,8 +6,7 @@ void runScenarioB1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
     int c_back = generate_backoff(0, CW_0);
     int a_curr = a_arrival.at(0);
     int c_curr = c_arrival.at(0);
-    int temp_collision = 0, tot_slots = 0, j = 0, k = 0, a_success = 0, c_success = 0, collisions = 0, total_iterations = 0, a_slots = 0, c_slots = 0, a_ref = 0, c_ref = 0;
-    bool send_c = false, send_a = false, c_reset = false, a_reset = false;
+    int temp_collision = 0, tot_slots = 0, j = 0, k = 0, a_success = 0, c_success = 0, collisions = 0, total_iterations = 0, a_slots = 0, c_slots = 0, a_ref = 0, c_ref = 0, send_a = 0, send_c = 0;
     std::ofstream myFile;
     myFile.open("b1out.txt", std::ios::app);
     
@@ -15,7 +14,7 @@ void runScenarioB1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
         // When current total slots is ahead A and C arrival times.
         if( tot_slots >= a_curr && tot_slots >= c_curr ){
             // When C's current slots aren't reset and A's slots need to be reset
-            if( c_reset != true && a_reset == true ){    // c_slots, a_slots
+            if( c_slots > 0 && a_slots == 0 ){    // c_slots, a_slots
                 a_back = generate_backoff(temp_collision, CW_0) + DIFS_slots;
                 a_slots = tot_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;
                 // Update reference variable for C when needed
@@ -26,7 +25,7 @@ void runScenarioB1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
                 a_ref = tot_slots + a_back;
             }
             //
-            else if( a_reset != true && c_reset == true ){
+            else if( a_slots > 0 && c_slots == 0 ){
                 c_back = generate_backoff(temp_collision, CW_0) + DIFS_slots;
                 c_slots = tot_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;
                 // Update A reference when needed
@@ -48,7 +47,7 @@ void runScenarioB1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
             // C firsts transmits before A (no backoff freeze)
             if ( c_slots <= a_ref ){
                 
-                if ( send_c == true ){
+                if ( send_c == 0 ){
                     tot_slots = c_slots;
                     c_success++;
                     k++;
