@@ -6,8 +6,8 @@ void runScenarioB1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
     int c_back = generate_backoff(0, CW_0);
     int a_curr = a_arrival.at(0);
     int c_curr = c_arrival.at(0);
-    int temp_collision = 0, tot_slots = 0, j = 0, k = 0, a_success = 0, c_success = 0, collisions = 0, total_iterations = 0, diff = 0, a_slots = 0, c_slots = 0;
-    
+    int temp_collision = 0, tot_slots = 0, j = 0, k = 0, a_success = 0, c_success = 0, collisions = 0, total_iterations = 0, a_slots = 0, c_slots = 0;
+    bool send_c = false, send_a = false;
     while ( tot_slots < SIM_TIME_slots ) {
         
         a_curr = a_arrival.at(j);
@@ -31,96 +31,110 @@ void runScenarioB1(std::vector<int> a_arrival, std::vector<int> c_arrival) {
         // When current total slots is ahead both A and C arrivals
         else if ( tot_slots >= a_curr && tot_slots >= c_curr ) {
             
-            diff = ( c_curr + c_back ) - ( a_curr + a_back );
-            
-            if ( diff < 0 ) {
+            // C transmits before A successfully transmits
+            if ( c_curr + c_back <= a_curr + a_back ) {
                 
+                if ( send_c == false ) {
+                    tot_slots += c_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+                    
+                    c_success++;
+                    temp_collision = 0;
+                    k++;
+                }
+                
+                else {
+                    tot_slots += c_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+                    send_c = false;
+                }
+            }
+            // A transmits before C successfully
+            else if ( a_curr + a_back <= c_curr + c_back ) {
+                
+                if ( send_a == false ) {
+                    tot_slots += a_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+                    
+                    a_success++;
+                    temp_collision = 0;
+                    j++;
+                }
+                
+                else {
+                    tot_slots += a_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+                    send_a = false;
+                }
+            }
+            // A and C transmit at the same time
+            else {
+                temp_collision++;
+                collisions++;
+                
+                if ( c_curr + c_back < a_curr + a_back ) {
+                    tot_slots += c_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+                    c_back = generate_backoff(temp_collision, CW_0);
+                    send_c = false;
+                    send_a = true;
+                }
+                
+                else if ( a_curr + a_back < c_curr + c_back ) {
+                    tot_slots += a_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+                    a_back = generate_backoff(temp_collision, CW_0);
+                    send_a = false;
+                    send_c = true;
+                }
+                
+                else {
+                    tot_slots += a_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
+                    a_back = generate_backoff(temp_collision, CW_0);
+                    c_back = generate_backoff(temp_collision, CW_0);
+                }
             }
         }
         // Given previous if statements, current total slot will be ahead of C arrival, but behind A
         else if ( tot_slots >= c_curr ) {
-            // C possibly transmits during A's backoff
-            if ( tot_slots + c_back >= a_curr ) {
-                // A and C backoff ends at same slot
-                if ( a_curr + DIFS_slots + a_back == tot_slots + DIFS_slots + c_back ) {
-                    tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;
-                    temp_collision++;
-                    collisions++;
-                    a_back = generate_backoff(temp_collision, CW_0);
-                    c_back = generate_backoff(temp_collision, CW_0);
-                }
-                // A's backoff ends later than C's backoff, A's backoff freezes
-                else if ( a_curr + DIFS_slots + a_back > tot_slots + DIFS_slots + c_back ) {
-                    tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;
-                    
-                    c_success++;
-                    k++;
-                    temp_collision = 0;
-                    a_back = ( a_curr + DIFS_slots + a_back ) - ( tot_slots + DIFS_slots + c_back );
-                    c_back = generate_backoff(0, CW_0);
-                }
-                // C's backoff ends later than A's backoff, C's backoff freezes
-                else {
-                    tot_slots = a_curr + DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;
-                    
-                    a_success++;
-                    j++;
-                    temp_collision = 0;
-                    c_back = ( tot_slots + DIFS_slots + c_back ) - ( a_curr + DIFS_slots + a_back );
-                    a_back = generate_backoff(0, CW_0);
-                }
-            }
-            // No possible transmission before A's backoff or collision, C transmits successfully
-            else {
-                tot_slots += DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;
-                
+            // Current total slots is behind A arrival and will have a successful transmission
+            if ( tot_slots <= a_curr ) {
+                tot_slots += c_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
                 c_success++;
-                k++;
                 temp_collision = 0;
                 c_back = generate_backoff(0, CW_0);
+                k++;
+            }
+            // Current total slots potentially will collide if backoff ends up being the same
+            else {
+                // Backoff freeze from A transmitting first
+                if ( a_curr < tot_slots + c_back ) {
+                    c_back = ( a_curr + a_back ) - ( tot_slots + c_back );
+                }
+                
+                else {
+                    c_back = generate_backoff(temp_collision, CW_0);
+                }
+                
+                tot_slots = a_curr;
             }
         }
         // Based off prior statements, current total slot will be ahead of A arrival, but behind C
         else if ( tot_slots >= a_curr ) {
-            // A possibly transmits during C's backoff
-            if ( tot_slots + c_back >= a_curr ) {
-                // A and C backoff ends at same slot
-                if ( c_curr + DIFS_slots + c_back == tot_slots + DIFS_slots + a_back ) {
-                    tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;
-                    temp_collision++;
-                    collisions++;
-                    a_back = generate_backoff(temp_collision, CW_0);
-                    c_back = generate_backoff(temp_collision, CW_0);
-                }
-                // C's backoff ends later than A's backoff, C's backoff freezes
-                else if ( c_curr + DIFS_slots + c_back > tot_slots + DIFS_slots + a_back ) {
-                    tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;
-                    
-                    a_success++;
-                    j++;
-                    temp_collision = 0;
-                    c_back = ( c_curr + DIFS_slots + c_back ) - ( tot_slots + DIFS_slots + a_back );
-                    a_back = generate_backoff(0, CW_0);
-                }
-                // A's backoff ends later than C's backoff, A's backoff freezes
-                else {
-                    tot_slots = c_curr + DIFS_slots + c_back + FRAME_slots + SIFS_slots + ACK_slots;
-                    
-                    c_success++;
-                    k++;
-                    temp_collision = 0;
-                    a_back = ( tot_slots + DIFS_slots + a_back ) - ( c_curr + DIFS_slots + c_back );
-                    c_back = generate_backoff(0, CW_0);
-                }
-            }
-            // No possible transmission before C's backoff or collision, A transmits successfully
-            else {
-                tot_slots += DIFS_slots + a_back + FRAME_slots + SIFS_slots + ACK_slots;
-                
+            // Current total slots is behind C arrival and will have a successful transmission
+            if ( tot_slots <= c_curr ) {
+                tot_slots += a_back + DIFS_slots + FRAME_slots + SIFS_slots + ACK_slots;
                 a_success++;
-                j++;
                 temp_collision = 0;
                 a_back = generate_backoff(0, CW_0);
+                j++;
+            }
+            // Current total slots potentially will collide if backoff ends up being the same
+            else {
+                // Backoff freeze from C transmitting first
+                if ( c_curr < tot_slots + a_back ) {
+                    a_back = ( c_curr + c_back ) - ( tot_slots + a_back );
+                }
+                
+                else {
+                    a_back = generate_backoff(temp_collision, CW_0);
+                }
+                
+                tot_slots = c_curr;
             }
         }
         total_iterations++;
